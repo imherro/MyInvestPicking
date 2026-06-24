@@ -27,6 +27,7 @@ http://localhost:8019
 - Score-weighted portfolio construction with position and industry caps
 - Drawdown guard and portfolio risk metrics
 - Market regime detection with dynamic risk budgets
+- Correlation risk, factor health, and portfolio stability metrics
 - Project structure for future strategy and risk modules
 
 ## Environment
@@ -55,6 +56,8 @@ contributions, raw metrics, and a short reason list. The response also includes
 Market state is exposed through `market_regime` and `risk_budget`, allowing
 position and exposure limits to adapt to trend, range, crash, or high-volatility
 conditions.
+Risk structure fields include `correlation_risk`, `concentration_risk`,
+`factor_health`, and `portfolio_stability`.
 
 ## Runtime Data
 

@@ -47,6 +47,12 @@ def test_picks_endpoint_returns_structured_results() -> None:
         "max_position_per_stock"
     ]
     assert payload["risk"]["portfolio_exposure"] <= payload["risk_budget"]["target_exposure"]
+    assert "correlation_risk" in payload
+    assert "factor_health" in payload
+    assert "concentration_risk" in payload
+    assert "portfolio_stability" in payload
+    assert 0 <= payload["factor_health"]["factor_health_score"] <= 1.05
+    assert 0 <= payload["portfolio_stability"]["stability_score"] <= 1
 
     first = payload["data"][0]
     assert {"code", "score", "final_score", "factors", "metrics", "contribution", "reason"} <= set(
@@ -56,6 +62,7 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert {"revenue_growth_yoy", "net_profit_growth_yoy", "ocf_to_profit"} <= set(
         first["metrics"]
     )
+    assert "factor_health_score" in first
 
     first_position = payload["portfolio"][0]
     assert {"code", "weight", "score", "final_score"} <= set(first_position)
@@ -76,3 +83,6 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["risk"] == second["risk"]
     assert first["market_regime"] == second["market_regime"]
     assert first["risk_budget"] == second["risk_budget"]
+    assert first["correlation_risk"] == second["correlation_risk"]
+    assert first["factor_health"] == second["factor_health"]
+    assert first["portfolio_stability"] == second["portfolio_stability"]

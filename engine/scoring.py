@@ -59,8 +59,12 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
     scored["risk_contribution"] = 0.20 * scored["risk"]
     scored["risk_adjust_factor"] = (0.75 + 0.25 * scored["risk"]).clip(0.75, 1.0)
     scored["regime_multiplier"] = _regime_multiplier(scored, regime_state)
+    scored["factor_health_score"] = _health_multiplier(scored)
     scored["final_score"] = (
-        scored["score"] * scored["risk_adjust_factor"] * scored["regime_multiplier"]
+        scored["score"]
+        * scored["risk_adjust_factor"]
+        * scored["regime_multiplier"]
+        * scored["factor_health_score"]
     ).clip(0, 1)
     return scored.sort_values(
         ["final_score", "score", "momentum", "ts_code"],
@@ -77,3 +81,10 @@ def _regime_multiplier(scored: pd.DataFrame, regime_state: str | None) -> pd.Ser
     if state == "high_vol":
         return (0.85 + 0.15 * scored["risk"]).clip(0.85, 1.00)
     return (0.95 + 0.05 * scored["value"]).clip(0.95, 1.00)
+
+
+def _health_multiplier(scored: pd.DataFrame) -> pd.Series:
+    if "factor_health_score" not in scored.columns:
+        return pd.Series(1.0, index=scored.index, dtype="float64")
+    health = pd.to_numeric(scored["factor_health_score"], errors="coerce").fillna(1.0)
+    return health.clip(0.4, 1.05)

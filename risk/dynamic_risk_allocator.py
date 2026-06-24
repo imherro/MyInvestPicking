@@ -9,24 +9,28 @@ REGIME_BUDGETS = {
         "max_industry_weight": 0.35,
         "target_exposure": 0.95,
         "drawdown_threshold": 0.10,
+        "max_cluster_weight": 0.50,
     },
     "range": {
         "max_position_per_stock": 0.10,
         "max_industry_weight": 0.30,
         "target_exposure": 0.85,
         "drawdown_threshold": 0.08,
+        "max_cluster_weight": 0.45,
     },
     "high_vol": {
         "max_position_per_stock": 0.07,
         "max_industry_weight": 0.25,
         "target_exposure": 0.65,
         "drawdown_threshold": 0.06,
+        "max_cluster_weight": 0.35,
     },
     "crash": {
         "max_position_per_stock": 0.05,
         "max_industry_weight": 0.20,
         "target_exposure": 0.40,
         "drawdown_threshold": 0.04,
+        "max_cluster_weight": 0.25,
     },
 }
 

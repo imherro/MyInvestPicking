@@ -17,6 +17,8 @@ def build_portfolio(
     max_industry_weight: float = DEFAULT_MAX_INDUSTRY_WEIGHT,
     drawdown_threshold: float = DEFAULT_DRAWDOWN_THRESHOLD,
     target_exposure: float = 1.0,
+    correlation_clusters: list[dict[str, Any]] | None = None,
+    max_cluster_weight: float = 0.45,
 ) -> dict[str, Any]:
     if not picks:
         return _empty_portfolio(
@@ -29,6 +31,11 @@ def build_portfolio(
     positions = _initial_score_weighted_positions(picks)
     positions = _cap_position_weights(positions, max_position_per_stock)
     positions, industry_exposure = cap_industry_exposure(positions, max_industry_weight)
+    positions, cluster_exposure = _cap_cluster_exposure(
+        positions,
+        correlation_clusters or [],
+        max_cluster_weight,
+    )
     positions = _scale_to_target_exposure(positions, target_exposure)
 
     estimated_drawdown = estimate_portfolio_drawdown(positions)
@@ -56,9 +63,11 @@ def build_portfolio(
         "risk": {
             "max_position_per_stock": max_position_per_stock,
             "max_industry_weight": max_industry_weight,
+            "max_cluster_weight": max_cluster_weight,
             "target_exposure": target_exposure,
             "portfolio_exposure": invested_weight,
             "industry_exposure": industry_exposure,
+            "cluster_exposure": cluster_exposure,
             "estimated_drawdown": estimated_drawdown,
             "drawdown_guard": drawdown_guard,
             "expected_volatility": expected_volatility,
@@ -139,6 +148,26 @@ def _trim_rounding_excess(
     return adjusted
 
 
+def _cap_cluster_exposure(
+    positions: list[dict[str, Any]],
+    clusters: list[dict[str, Any]],
+    max_cluster_weight: float,
+) -> tuple[list[dict[str, Any]], dict[str, float]]:
+    adjusted = [dict(position) for position in positions]
+    cluster_exposure = {}
+    for cluster in clusters:
+        codes = set(cluster.get("codes", []))
+        exposure = sum(float(position.get("weight") or 0) for position in adjusted if position["code"] in codes)
+        if exposure > max_cluster_weight and exposure > 0:
+            scale = max_cluster_weight / exposure
+            for position in adjusted:
+                if position["code"] in codes:
+                    position["weight"] = float(position["weight"]) * scale
+            exposure = max_cluster_weight
+        cluster_exposure[str(cluster.get("id"))] = round(exposure, 6)
+    return adjusted, cluster_exposure
+
+
 def _scale_to_target_exposure(
     positions: list[dict[str, Any]],
     target_exposure: float,
@@ -169,9 +198,11 @@ def _empty_portfolio(
         "risk": {
             "max_position_per_stock": max_position_per_stock,
             "max_industry_weight": max_industry_weight,
+            "max_cluster_weight": 0.45,
             "target_exposure": target_exposure,
             "portfolio_exposure": 0.0,
             "industry_exposure": {},
+            "cluster_exposure": {},
             "estimated_drawdown": 0.0,
             "drawdown_guard": {
                 "triggered": False,

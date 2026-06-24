@@ -6,12 +6,16 @@ import pandas as pd
 
 from config.settings import DEFAULT_TOP_N
 from engine.data_loader import TushareDataLoader, format_api_date
+from engine.factor_decay import add_factor_health, summarize_factor_health
 from engine.factor_engine import compute_factors
 from engine.market_features import compute_market_features
 from engine.market_regime import detect_market_regime
+from engine.portfolio_stability import compute_portfolio_stability
 from engine.scoring import score_stocks
 from engine.snapshot import build_universe_hash, create_snapshot
 from engine.universe import filter_universe
+from risk.concentration_risk import evaluate_concentration_risk
+from risk.correlation_engine import compute_correlation_risk
 from risk.dynamic_risk_allocator import allocate_dynamic_risk_budget
 from risk.risk_engine import build_risk_managed_portfolio
 
@@ -37,6 +41,7 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
         "final_score": _round_float(row.get("final_score")),
         "risk_adjust_factor": _round_float(row.get("risk_adjust_factor")),
         "regime_multiplier": _round_float(row.get("regime_multiplier")),
+        "factor_health_score": _round_float(row.get("factor_health_score")),
         "factors": factors,
         "contribution": {
             "momentum": _round_float(row.get("momentum_contribution")),
@@ -45,6 +50,7 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
             "risk": _round_float(row.get("risk_contribution")),
         },
         "metrics": {
+            "momentum_5d": _round_float(row.get("momentum_5d")),
             "momentum_20d": _round_float(row.get("momentum_20d")),
             "volatility_20d": _round_float(row.get("volatility_20d")),
             "roe": _round_float(row.get("roe")),
@@ -90,11 +96,26 @@ def build_stock_picks(
     factors = compute_factors(market_data)
     if not factors.empty:
         factors = factors[factors["ts_code"].isin(tradable_codes)]
+    factors = add_factor_health(factors)
+    factor_health = summarize_factor_health(factors)
 
     scored = score_stocks(factors, regime_state=str(market_regime["state"]))
     selected = scored.head(max(top_n, 0))
     results = [_to_pick(row) for _, row in selected.iterrows()]
-    portfolio_result = build_risk_managed_portfolio(results, risk_budget=risk_budget)
+    correlation_risk = compute_correlation_risk(
+        market_data.daily,
+        [pick["code"] for pick in results],
+    )
+    portfolio_result = build_risk_managed_portfolio(
+        results,
+        risk_budget=risk_budget,
+        correlation_clusters=correlation_risk["clusters"],
+    )
+    concentration_risk = evaluate_concentration_risk(
+        portfolio_result["positions"],
+        correlation_risk["clusters"],
+    )
+    portfolio_stability = compute_portfolio_stability(portfolio_result["positions"])
     universe_hash = build_universe_hash(tradable_universe["ts_code"].astype(str))
     snapshot = create_snapshot(
         trading_date=format_api_date(market_data.trade_date),
@@ -108,6 +129,10 @@ def build_stock_picks(
             "risk": portfolio_result["risk"],
             "market_regime": market_regime,
             "risk_budget": risk_budget,
+            "correlation_risk": correlation_risk,
+            "factor_health": factor_health,
+            "concentration_risk": concentration_risk,
+            "portfolio_stability": portfolio_stability,
         },
     )
 
@@ -122,6 +147,10 @@ def build_stock_picks(
         "market_features": market_features,
         "market_regime": market_regime,
         "risk_budget": risk_budget,
+        "correlation_risk": correlation_risk,
+        "factor_health": factor_health,
+        "concentration_risk": concentration_risk,
+        "portfolio_stability": portfolio_stability,
         "universe_size": int(len(tradable_universe)),
         "portfolio": portfolio_result["positions"],
         "risk": portfolio_result["risk"],

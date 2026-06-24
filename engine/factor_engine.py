@@ -18,11 +18,16 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
     close_wide = daily.pivot_table(index="trade_date", columns="ts_code", values="close")
     returns = close_wide.pct_change()
     latest_close = close_wide.iloc[-1]
+    if len(close_wide) > 5:
+        base_close_5d = close_wide.shift(5).iloc[-1]
+    else:
+        base_close_5d = close_wide.iloc[0]
     if len(close_wide) > 20:
         base_close = close_wide.shift(20).iloc[-1]
     else:
         base_close = close_wide.iloc[0]
 
+    momentum_5d = latest_close / base_close_5d - 1
     momentum_20d = latest_close / base_close - 1
     volatility_20d = returns.tail(20).std()
     latest_daily = daily.groupby("ts_code", as_index=False).tail(1)
@@ -30,6 +35,7 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
     factors = pd.DataFrame(
         {
             "ts_code": latest_close.index.astype(str),
+            "momentum_5d": momentum_5d.values,
             "momentum_20d": momentum_20d.values,
             "volatility_20d": volatility_20d.reindex(latest_close.index).values,
             "close": latest_close.values,
@@ -90,6 +96,7 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
 
     for column in [
         "momentum_20d",
+        "momentum_5d",
         "volatility_20d",
         "pe",
         "pb",

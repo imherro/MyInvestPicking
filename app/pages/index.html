@@ -211,7 +211,9 @@
           const risk = payload.risk || {};
           const regime = payload.market_regime || {};
           const exposure = risk.portfolio_exposure ?? payload.risk_budget?.target_exposure ?? 0;
-          summary.textContent = `${payload.trading_date || payload.date} | ${regime.state || "range"} regime | exposure ${formatValue(exposure)} | ${data.length} positions | ${risk.risk_level || "unknown"} risk | ${payload.snapshot_id || "no snapshot"}`;
+          const health = payload.factor_health?.factor_health_score ?? 0;
+          const stability = payload.portfolio_stability?.stability_score ?? 0;
+          summary.textContent = `${payload.trading_date || payload.date} | ${regime.state || "range"} regime | exposure ${formatValue(exposure)} | health ${formatValue(health)} | stability ${formatValue(stability)} | ${data.length} positions | ${risk.risk_level || "unknown"} risk`;
 
           if (data.length === 0) {
             picksBody.innerHTML =
