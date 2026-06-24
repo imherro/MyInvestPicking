@@ -1,0 +1,4 @@
+APP_NAME = "MyInvestPicking"
+APP_VERSION = "0.1.0"
+DEFAULT_HOST = "0.0.0.0"
+DEFAULT_PORT = 8019
