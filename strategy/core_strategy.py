@@ -9,6 +9,7 @@ from config.settings import DEFAULT_TOP_N
 from engine.data_loader import TushareDataLoader, format_api_date
 from engine.factor_decay import add_factor_health, summarize_factor_health
 from engine.factor_engine import compute_factors
+from engine.final_decision_engine import build_final_signals, summarize_signals
 from engine.liquidity import filter_liquidity
 from engine.market_features import compute_market_features
 from engine.market_regime import detect_market_regime
@@ -128,6 +129,12 @@ def build_stock_picks(
         correlation_risk["clusters"],
     )
     portfolio_stability = compute_portfolio_stability(portfolio_result["positions"])
+    signals = build_final_signals(
+        portfolio_result["positions"],
+        market_regime=market_regime,
+        correlation_risk=correlation_risk,
+    )
+    signal_summary = summarize_signals(signals)
     backtest = run_backtest(market_data, portfolio_result["positions"])
     universe_hash = build_universe_hash(tradable_universe["ts_code"].astype(str))
     snapshot = create_snapshot(
@@ -139,6 +146,8 @@ def build_stock_picks(
         results={
             "picks": results,
             "portfolio": portfolio_result["positions"],
+            "signals": signals,
+            "signal_summary": signal_summary,
             "risk": portfolio_result["risk"],
             "market_regime": market_regime,
             "risk_budget": risk_budget,
@@ -168,6 +177,8 @@ def build_stock_picks(
         "factor_health": factor_health,
         "concentration_risk": concentration_risk,
         "portfolio_stability": portfolio_stability,
+        "signals": signals,
+        "signal_summary": signal_summary,
         "backtest": backtest,
         "universe_size": int(len(tradable_universe)),
         "portfolio": portfolio_result["positions"],

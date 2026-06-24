@@ -14,6 +14,7 @@ warnings.filterwarnings(
 from fastapi.testclient import TestClient
 
 from app.main import app
+from engine.tradability_engine import assess_tradability
 from risk.portfolio_builder import build_portfolio
 
 
@@ -40,6 +41,8 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert payload["universe_hash"]
     assert len(payload["data"]) == 5
     assert len(payload["portfolio"]) == 5
+    assert len(payload["signals"]) == 5
+    assert payload["signal_summary"]["counts"]
     assert payload["market_regime"]["state"] in {"trend", "range", "crash", "high_vol"}
     assert 0 <= payload["market_regime"]["confidence"] <= 1
     assert payload["risk_budget"]["max_position_per_stock"] > 0
@@ -84,6 +87,19 @@ def test_picks_endpoint_returns_structured_results() -> None:
         "max_industry_weight"
     ]
 
+    first_signal = payload["signals"][0]
+    assert {
+        "code",
+        "action",
+        "confidence",
+        "position_size",
+        "tradability",
+        "signal_confidence",
+        "reason",
+    } <= set(first_signal)
+    assert first_signal["action"] in {"BUY", "HOLD", "NO_TRADE"}
+    assert 0 <= first_signal["confidence"] <= 1
+
 
 def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     first = client.get("/api/picks?date=2026-06-24&top_n=5").json()
@@ -93,6 +109,8 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["data_version"] == second["data_version"]
     assert first["data"] == second["data"]
     assert first["portfolio"] == second["portfolio"]
+    assert first["signals"] == second["signals"]
+    assert first["signal_summary"] == second["signal_summary"]
     assert first["risk"] == second["risk"]
     assert first["market_regime"] == second["market_regime"]
     assert first["risk_budget"] == second["risk_budget"]
@@ -119,3 +137,23 @@ def test_portfolio_caps_beijing_exchange_exposure() -> None:
     )
 
     assert result["risk"]["exchange_exposure"]["BJ"] <= 0.15
+
+
+def test_tradability_blocks_untradeable_candidates() -> None:
+    position = {
+        "code": "600001.SH",
+        "name": "Test",
+        "metrics": {
+            "latest_pct_chg": 9.9,
+            "latest_amount": 10_000,
+            "turnover_rate": 0.2,
+            "volatility_20d": 0.08,
+        },
+    }
+
+    result = assess_tradability(position)
+
+    assert result["tradable"] is False
+    assert "near limit up" in result["reasons"]
+    assert "low latest amount" in result["reasons"]
+    assert "low turnover" in result["reasons"]

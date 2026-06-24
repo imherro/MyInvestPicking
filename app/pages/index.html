@@ -13,6 +13,9 @@
         --muted: #5f6b7a;
         --line: #d8dee8;
         --accent: #0f766e;
+        --buy: #047857;
+        --hold: #92400e;
+        --no-trade: #991b1b;
       }
 
       * {
@@ -139,6 +142,56 @@
         font-weight: 650;
       }
 
+      .signal {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .signal-buy {
+        background: #dff5ea;
+        color: var(--buy);
+      }
+
+      .signal-hold {
+        background: #fff1d6;
+        color: var(--hold);
+      }
+
+      .signal-no-trade {
+        background: #fde2e2;
+        color: var(--no-trade);
+      }
+
+      .confidence {
+        display: grid;
+        gap: 5px;
+        min-width: 110px;
+      }
+
+      .confidence-track {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e8edf5;
+      }
+
+      .confidence-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: var(--accent);
+      }
+
+      .reason {
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
       td:nth-child(1),
       th:nth-child(1) {
         width: 120px;
@@ -157,6 +210,21 @@
       td:nth-child(7),
       th:nth-child(7) {
         width: 210px;
+      }
+
+      td:nth-child(8),
+      th:nth-child(8) {
+        width: 104px;
+      }
+
+      td:nth-child(9),
+      th:nth-child(9) {
+        width: 132px;
+      }
+
+      td:nth-child(10),
+      th:nth-child(10) {
+        width: 260px;
       }
 
       .empty,
@@ -214,12 +282,15 @@
                 <th>Score</th>
                 <th>Factors</th>
                 <th>Adjust</th>
+                <th>Signal</th>
+                <th>Confidence</th>
+                <th>Reason</th>
                 <th>Industry</th>
               </tr>
             </thead>
             <tbody id="picks">
               <tr>
-                <td colspan="8" class="empty">No data yet. Engine not initialized.</td>
+                <td colspan="11" class="empty">No data yet. Engine not initialized.</td>
               </tr>
             </tbody>
           </table>
@@ -239,6 +310,7 @@
         .then((response) => response.json())
         .then((payload) => {
           const data = payload.portfolio || payload.data || [];
+          const signals = payload.signals || data;
           const risk = payload.risk || {};
           const regime = payload.market_regime || {};
           const exposure = risk.portfolio_exposure ?? payload.risk_budget?.target_exposure ?? 0;
@@ -247,21 +319,25 @@
           const health = payload.factor_health?.factor_health_score ?? 0;
           const stability = payload.portfolio_stability?.stability_score ?? 0;
           const sharpe = payload.backtest?.metrics?.sharpe ?? 0;
-          summary.textContent = `${payload.trading_date || payload.date} | ${regime.state || "range"} regime | exposure ${formatValue(exposure)} | BJ ${formatValue(bjExposure)}/${formatValue(bjCap)} | health ${formatValue(health)} | stability ${formatValue(stability)} | sharpe ${formatValue(sharpe)} | ${data.length} positions`;
+          const signalCounts = payload.signal_summary?.counts || {};
+          const buyCount = signalCounts.BUY ?? 0;
+          const holdCount = signalCounts.HOLD ?? 0;
+          const noTradeCount = signalCounts.NO_TRADE ?? 0;
+          summary.textContent = `${payload.trading_date || payload.date} | ${regime.state || "range"} regime | exposure ${formatValue(exposure)} | BJ ${formatValue(bjExposure)}/${formatValue(bjCap)} | BUY ${buyCount} HOLD ${holdCount} NO_TRADE ${noTradeCount} | health ${formatValue(health)} | stability ${formatValue(stability)} | sharpe ${formatValue(sharpe)} | ${signals.length} signals`;
 
-          if (data.length === 0) {
+          if (signals.length === 0) {
             picksBody.innerHTML =
-              '<tr><td colspan="8" class="empty">No data yet. Engine not initialized.</td></tr>';
+              '<tr><td colspan="11" class="empty">No data yet. Engine not initialized.</td></tr>';
             return;
           }
 
-          picksBody.innerHTML = data
+          picksBody.innerHTML = signals
             .map(
               (pick) => `
                 <tr>
                   <td>${pick.code}</td>
                   <td>${pick.name || "-"}</td>
-                  <td>${formatValue(pick.weight)}</td>
+                  <td>${formatValue(pick.position_size ?? pick.weight)}</td>
                   <td>${formatValue(pick.final_score)}</td>
                   <td>${formatValue(pick.score)}</td>
                   <td>
@@ -281,6 +357,14 @@
                       <span class="factor-chip">Liq <strong>${formatValue(pick.liquidity_risk_multiplier)}</strong></span>
                     </div>
                   </td>
+                  <td><span class="signal ${signalClass(pick.action)}">${displayAction(pick.action)}</span></td>
+                  <td>
+                    <div class="confidence">
+                      <span>${formatValue(pick.confidence)}</span>
+                      <span class="confidence-track"><span class="confidence-fill" style="width: ${confidenceWidth(pick.confidence)}%"></span></span>
+                    </div>
+                  </td>
+                  <td class="reason" title="${reasonText(pick)}">${reasonText(pick)}</td>
                   <td>${pick.industry || "-"}</td>
                 </tr>
               `,
@@ -290,8 +374,31 @@
         .catch(() => {
           summary.textContent = "API unavailable";
           picksBody.innerHTML =
-            '<tr><td colspan="8" class="error">Failed to load picks.</td></tr>';
+            '<tr><td colspan="11" class="error">Failed to load picks.</td></tr>';
         });
+
+      function signalClass(action) {
+        if (action === "BUY") return "signal-buy";
+        if (action === "HOLD") return "signal-hold";
+        return "signal-no-trade";
+      }
+
+      function displayAction(action) {
+        return action === "NO_TRADE" ? "NO TRADE" : action || "NO TRADE";
+      }
+
+      function confidenceWidth(value) {
+        if (value === null || value === undefined) return 0;
+        return Math.max(0, Math.min(100, Number(value) * 100));
+      }
+
+      function reasonText(signal) {
+        const reason = signal.reason || {};
+        const blocked = reason.tradability_reasons || [];
+        if (blocked.length > 0) return blocked.join(", ");
+        const regime = reason.regime || "-";
+        return `${reason.decision || signal.action || "NO_TRADE"} in ${regime} regime`;
+      }
     </script>
   </body>
 </html>
