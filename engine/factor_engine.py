@@ -48,6 +48,39 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
         ]
         factors = factors.merge(daily_basic[keep_columns], on="ts_code", how="left")
 
+    financial = market_data.financial_indicator.copy()
+    if not financial.empty:
+        financial = financial.rename(
+            columns={
+                "or_yoy": "revenue_growth_yoy",
+                "netprofit_yoy": "net_profit_growth_yoy",
+            }
+        )
+        financial = financial.groupby("ts_code", as_index=False).tail(1)
+        keep_columns = [
+            column
+            for column in [
+                "ts_code",
+                "roe",
+                "revenue_growth_yoy",
+                "net_profit_growth_yoy",
+                "ocf_to_profit",
+            ]
+            if column in financial.columns
+        ]
+        factors = factors.merge(
+            financial[keep_columns],
+            on="ts_code",
+            how="left",
+            suffixes=("", "_financial"),
+        )
+        if "roe_financial" in factors.columns:
+            if "roe" in factors.columns:
+                factors["roe"] = factors["roe_financial"].combine_first(factors["roe"])
+            else:
+                factors["roe"] = factors["roe_financial"]
+            factors = factors.drop(columns=["roe_financial"])
+
     stock_basic = market_data.stock_basic.copy()
     if not stock_basic.empty:
         keep_columns = [
@@ -55,7 +88,16 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
         ]
         factors = factors.merge(stock_basic[keep_columns], on="ts_code", how="left")
 
-    for column in ["momentum_20d", "volatility_20d", "pe", "pb", "roe"]:
+    for column in [
+        "momentum_20d",
+        "volatility_20d",
+        "pe",
+        "pb",
+        "roe",
+        "revenue_growth_yoy",
+        "net_profit_growth_yoy",
+        "ocf_to_profit",
+    ]:
         if column in factors.columns:
             factors[column] = pd.to_numeric(factors[column], errors="coerce")
 

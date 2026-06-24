@@ -7,3 +7,6 @@ __pycache__/
 
 temp/
 tmp/
+
+data/cache/
+data/frozen/

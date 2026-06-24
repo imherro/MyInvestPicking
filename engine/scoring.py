@@ -28,7 +28,16 @@ def score_stocks(factors: pd.DataFrame) -> pd.DataFrame:
 
     scored = factors.copy()
     scored["momentum"] = _score_column(scored, "momentum_20d", True)
-    scored["quality"] = _score_column(scored, "roe", True)
+    scored["roe_score"] = _score_column(scored, "roe", True)
+    scored["revenue_growth_score"] = _score_column(scored, "revenue_growth_yoy", True)
+    scored["net_profit_growth_score"] = _score_column(scored, "net_profit_growth_yoy", True)
+    scored["cashflow_quality_score"] = _score_column(scored, "ocf_to_profit", True)
+    scored["quality"] = (
+        0.40 * scored["roe_score"]
+        + 0.25 * scored["revenue_growth_score"]
+        + 0.20 * scored["net_profit_growth_score"]
+        + 0.15 * scored["cashflow_quality_score"]
+    )
 
     value_parts = []
     if "pe" in scored.columns:
@@ -44,4 +53,11 @@ def score_stocks(factors: pd.DataFrame) -> pd.DataFrame:
         + 0.20 * scored["value"]
         + 0.20 * scored["risk"]
     ).clip(0, 1)
-    return scored.sort_values(["score", "momentum"], ascending=False).reset_index(drop=True)
+    scored["momentum_contribution"] = 0.35 * scored["momentum"]
+    scored["quality_contribution"] = 0.25 * scored["quality"]
+    scored["value_contribution"] = 0.20 * scored["value"]
+    scored["risk_contribution"] = 0.20 * scored["risk"]
+    return scored.sort_values(
+        ["score", "momentum", "ts_code"],
+        ascending=[False, False, True],
+    ).reset_index(drop=True)

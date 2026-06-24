@@ -208,7 +208,7 @@
         .then((response) => response.json())
         .then((payload) => {
           const data = payload.data || [];
-          summary.textContent = `${payload.date} | ${payload.source}${payload.mock_mode ? " mock" : ""} | ${data.length} picks`;
+          summary.textContent = `${payload.trading_date || payload.date} | ${payload.source}${payload.mock_mode ? " mock" : ""} | ${data.length} picks | ${payload.snapshot_id || "no snapshot"}`;
 
           if (data.length === 0) {
             picksBody.innerHTML =
