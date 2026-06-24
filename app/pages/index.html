@@ -126,6 +126,11 @@
         overflow-x: auto;
       }
 
+      .stack {
+        display: grid;
+        gap: 18px;
+      }
+
       table {
         width: 100%;
         min-width: 920px;
@@ -216,6 +221,72 @@
         background: var(--accent);
       }
 
+      .shadow-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+        gap: 18px;
+        padding: 18px 20px 20px;
+      }
+
+      .shadow-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      .chart {
+        display: block;
+        width: 100%;
+        height: 220px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfe;
+      }
+
+      .chart path,
+      .chart polyline {
+        fill: none;
+        stroke: var(--accent);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2.5;
+      }
+
+      .chart .chart-grid {
+        stroke: #dfe5ee;
+        stroke-width: 1;
+      }
+
+      .history-list {
+        display: grid;
+        gap: 8px;
+        max-height: 300px;
+        overflow: auto;
+      }
+
+      .history-item {
+        display: grid;
+        grid-template-columns: 88px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfe;
+        cursor: help;
+      }
+
+      .history-item strong {
+        font-size: 13px;
+      }
+
+      .history-item span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
       .reason {
         cursor: help;
         color: var(--muted);
@@ -285,6 +356,11 @@
           justify-content: flex-start;
         }
 
+        .shadow-grid {
+          grid-template-columns: 1fr;
+          padding: 14px 14px 16px;
+        }
+
         main {
           width: min(100% - 24px, 1040px);
           padding: 24px 0;
@@ -307,33 +383,51 @@
         <div class="badge">Port 8019</div>
       </header>
 
-      <section class="panel" aria-labelledby="top-picks-title">
-        <div class="toolbar">
-          <h2 id="top-picks-title">Today&apos;s Top Picks</h2>
-          <div class="status" id="summary">Loading /api/picks</div>
-        </div>
-        <div class="table-wrap">
-          <table aria-label="Stock picks">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Name</th>
-                <th>Weight</th>
-                <th>Final</th>
-                <th>Signal</th>
-                <th>Confidence</th>
-                <th>Reason</th>
-                <th>Industry</th>
-              </tr>
-            </thead>
-            <tbody id="picks">
-              <tr>
-                <td colspan="8" class="empty">No data yet. Engine not initialized.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <div class="stack">
+        <section class="panel" aria-labelledby="top-picks-title">
+          <div class="toolbar">
+            <h2 id="top-picks-title">Today&apos;s Top Picks</h2>
+            <div class="status" id="summary">Loading /api/picks</div>
+          </div>
+          <div class="table-wrap">
+            <table aria-label="Stock picks">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th>Position</th>
+                  <th>Final</th>
+                  <th>Signal</th>
+                  <th>Confidence</th>
+                  <th>Reason</th>
+                  <th>Industry</th>
+                </tr>
+              </thead>
+              <tbody id="picks">
+                <tr>
+                  <td colspan="8" class="empty">No data yet. Engine not initialized.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="shadow-title">
+          <div class="toolbar">
+            <h2 id="shadow-title">Shadow Portfolio</h2>
+            <div class="status" id="shadow-status">Waiting for signals</div>
+          </div>
+          <div class="shadow-grid">
+            <div>
+              <div class="shadow-summary" id="shadow-summary"></div>
+              <svg class="chart" id="shadow-chart" role="img" aria-label="Shadow portfolio NAV curve"></svg>
+            </div>
+            <div class="history-list" id="rebalance-history">
+              <div class="empty">No rebalance history yet.</div>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
     <div data-myinvest-footer></div>
     <script src="https://invest.okbbc.com/header.js" data-target="[data-myinvest-header]" defer></script>
@@ -341,13 +435,17 @@
     <script>
       const picksBody = document.querySelector("#picks");
       const summary = document.querySelector("#summary");
+      const shadowStatus = document.querySelector("#shadow-status");
+      const shadowSummary = document.querySelector("#shadow-summary");
+      const shadowChart = document.querySelector("#shadow-chart");
+      const rebalanceHistory = document.querySelector("#rebalance-history");
 
       const formatValue = (value) => {
         if (value === null || value === undefined) return "-";
         return Number(value).toFixed(4);
       };
 
-      fetch("/api/picks")
+      fetch("/api/picks?shadow_days=0")
         .then((response) => response.json())
         .then((payload) => {
           const data = payload.portfolio || payload.data || [];
@@ -381,6 +479,7 @@
           if (signals.length === 0) {
             picksBody.innerHTML =
               '<tr><td colspan="8" class="empty">No data yet. Engine not initialized.</td></tr>';
+            loadShadowPortfolio();
             return;
           }
 
@@ -408,11 +507,13 @@
               `,
             )
             .join("");
+          loadShadowPortfolio();
         })
         .catch(() => {
           summary.textContent = "API unavailable";
+          shadowStatus.textContent = "API unavailable";
           picksBody.innerHTML =
-            '<tr><td colspan="11" class="error">Failed to load picks.</td></tr>';
+            '<tr><td colspan="8" class="error">Failed to load picks.</td></tr>';
         });
 
       function signalClass(action) {
@@ -507,6 +608,121 @@
 
       function industryDetail(signal) {
         return `${signal.industry || "-"}\n${signal.code} ${signal.name || ""}`;
+      }
+
+      function renderShadowPortfolio(shadow) {
+        if (!shadow || shadow.status !== "ok") {
+          const reason = shadow?.reason || "No shadow portfolio data";
+          shadowStatus.textContent = reason;
+          shadowSummary.innerHTML = "";
+          shadowChart.innerHTML = "";
+          rebalanceHistory.innerHTML = `<div class="empty">${escapeHtml(reason)}</div>`;
+          return;
+        }
+
+        const info = shadow.summary || {};
+        const metrics = shadow.metrics || {};
+        const detail = [
+          `Mode: ${shadow.assumptions?.rebalance || "daily_new_picks"}`,
+          `Position source: ${shadow.assumptions?.position_source || "BUY position_size"}`,
+          `Sharpe ${formatValue(metrics.sharpe)} | MDD ${formatValue(metrics.max_drawdown)}`,
+          `Turnover ${formatValue(metrics.turnover)}`,
+        ].join("\n");
+        shadowStatus.textContent = `${info.start_date} to ${info.end_date}`;
+        shadowStatus.title = detail;
+        shadowSummary.innerHTML = [
+          summaryPill("NAV", formatValue(info.end_nav), detail),
+          summaryPill("Return", percentValue(info.total_return), detail),
+          summaryPill("MDD", percentValue(info.max_drawdown), detail),
+          summaryPill("Exposure", formatValue(info.latest_exposure), detail),
+          summaryPill("Rebals", info.rebalance_count, detail),
+        ].join("");
+        renderNavChart(shadow.equity_curve || []);
+        renderRebalanceHistory(shadow.rebalance_history || []);
+      }
+
+      function loadShadowPortfolio() {
+        shadowStatus.textContent = "Building shadow portfolio";
+        fetch("/api/shadow-portfolio?shadow_days=5")
+          .then((response) => response.json())
+          .then((payload) => {
+            renderShadowPortfolio(payload.shadow_portfolio);
+          })
+          .catch(() => {
+            shadowStatus.textContent = "Shadow portfolio unavailable";
+            shadowSummary.innerHTML = "";
+            shadowChart.innerHTML = "";
+            rebalanceHistory.innerHTML =
+              '<div class="error">Failed to load shadow portfolio.</div>';
+          });
+      }
+
+      function renderNavChart(points) {
+        if (!points.length) {
+          shadowChart.innerHTML = "";
+          return;
+        }
+        const width = 640;
+        const height = 220;
+        const pad = 24;
+        const navs = points.map((point) => Number(point.nav || 1));
+        const min = Math.min(...navs);
+        const max = Math.max(...navs);
+        const range = Math.max(max - min, 0.0001);
+        const coords = points
+          .map((point, index) => {
+            const x = points.length === 1
+              ? width / 2
+              : pad + (index * (width - pad * 2)) / (points.length - 1);
+            const y = height - pad - ((Number(point.nav || 1) - min) / range) * (height - pad * 2);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          })
+          .join(" ");
+        shadowChart.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        shadowChart.innerHTML = `
+          <line class="chart-grid" x1="${pad}" y1="${pad}" x2="${width - pad}" y2="${pad}"></line>
+          <line class="chart-grid" x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}"></line>
+          <polyline points="${coords}"></polyline>
+          <text x="${pad}" y="18" fill="#5f6b7a" font-size="12">${formatValue(max)}</text>
+          <text x="${pad}" y="${height - 6}" fill="#5f6b7a" font-size="12">${formatValue(min)}</text>
+        `;
+      }
+
+      function renderRebalanceHistory(history) {
+        if (!history.length) {
+          rebalanceHistory.innerHTML = '<div class="empty">No rebalance history yet.</div>';
+          return;
+        }
+        rebalanceHistory.innerHTML = history
+          .slice()
+          .reverse()
+          .map((item) => {
+            const counts = item.signal_counts || {};
+            const changes = item.changes || [];
+            const title = [
+              `Rebalance ${item.rebalance_date}, applied ${item.applied_date}`,
+              `NAV ${formatValue(item.nav)} | exposure ${formatValue(item.target_exposure)}`,
+              `Turnover ${formatValue(item.turnover)} | cost ${formatValue(item.cost)}`,
+              `Portfolio return ${formatValue(item.portfolio_return)}`,
+              `Signals B ${counts.BUY || 0} / H ${counts.HOLD || 0} / N ${counts.NO_TRADE || 0}`,
+              changes.length
+                ? changes.map((change) => `${change.code} ${formatValue(change.previous_weight)} -> ${formatValue(change.target_weight)}`).join("\n")
+                : "No position changes",
+            ].join("\n");
+            return `
+              <div class="history-item" title="${escapeAttr(title)}">
+                <strong>${escapeHtml(item.applied_date)}</strong>
+                <span>NAV ${formatValue(item.nav)} · Exp ${formatValue(item.target_exposure)}</span>
+                <span>${changes.length} changes</span>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function percentValue(value) {
+        if (value === null || value === undefined) return "-";
+        return `${(Number(value) * 100).toFixed(2)}%`;
       }
 
       function escapeHtml(value) {

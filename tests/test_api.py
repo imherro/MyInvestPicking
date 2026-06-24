@@ -30,6 +30,8 @@ def test_index_page() -> None:
     assert 'src="https://invest.okbbc.com/header.js"' in response.text
     assert 'src="https://invest.okbbc.com/footer.js"' in response.text
     assert '<header class="page-header">' in response.text
+    assert "Shadow Portfolio" in response.text
+    assert "<th>Position</th>" in response.text
 
 
 def test_picks_endpoint_returns_structured_results() -> None:
@@ -65,6 +67,7 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert "concentration_risk" in payload
     assert "portfolio_stability" in payload
     assert "backtest" in payload
+    assert "shadow_portfolio" in payload
     assert 0 <= payload["factor_health"]["factor_health_score"] <= 1.05
     assert 0 <= payload["portfolio_stability"]["stability_score"] <= 1
     assert {"cagr", "sharpe", "max_drawdown", "turnover", "win_rate"} <= set(
@@ -72,6 +75,17 @@ def test_picks_endpoint_returns_structured_results() -> None:
     )
     assert payload["backtest"]["equity_curve"]
     assert payload["backtest"]["drawdown_curve"]
+    assert payload["shadow_portfolio"]["status"] == "ok"
+    assert payload["shadow_portfolio"]["assumptions"]["ratio_only"] is True
+    assert payload["shadow_portfolio"]["equity_curve"]
+    assert payload["shadow_portfolio"]["rebalance_history"]
+    assert {
+        "start_nav",
+        "end_nav",
+        "total_return",
+        "rebalance_count",
+        "latest_exposure",
+    } <= set(payload["shadow_portfolio"]["summary"])
 
     first = payload["data"][0]
     assert {"code", "score", "final_score", "factors", "metrics", "contribution", "reason"} <= set(
@@ -123,6 +137,26 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["factor_health"] == second["factor_health"]
     assert first["portfolio_stability"] == second["portfolio_stability"]
     assert first["backtest"] == second["backtest"]
+    assert first["shadow_portfolio"] == second["shadow_portfolio"]
+
+
+def test_shadow_portfolio_endpoint_returns_history() -> None:
+    response = client.get("/api/shadow-portfolio?top_n=5&shadow_days=3")
+    assert response.status_code == 200
+
+    payload = response.json()
+    shadow = payload["shadow_portfolio"]
+    assert payload["status"] == "ok"
+    assert payload["source"] == "mock"
+    assert payload["mock_mode"] is True
+    assert shadow["status"] == "ok"
+    assert shadow["assumptions"]["ratio_only"] is True
+    assert len(shadow["equity_curve"]) == 4
+    assert len(shadow["rebalance_history"]) == 3
+    first_rebalance = shadow["rebalance_history"][0]
+    assert {"rebalance_date", "applied_date", "nav", "target_exposure", "changes"} <= set(
+        first_rebalance
+    )
 
 
 def test_portfolio_caps_beijing_exchange_exposure() -> None:

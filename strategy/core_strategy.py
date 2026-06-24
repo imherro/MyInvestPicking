@@ -15,6 +15,7 @@ from engine.market_features import compute_market_features
 from engine.market_regime import detect_market_regime
 from engine.portfolio_stability import compute_portfolio_stability
 from engine.scoring import score_stocks
+from engine.shadow_portfolio import build_shadow_portfolio
 from engine.snapshot import build_universe_hash, create_snapshot
 from engine.universe import filter_universe
 from risk.concentration_risk import evaluate_concentration_risk
@@ -96,6 +97,8 @@ def build_stock_picks(
     trade_date: str | None = None,
     top_n: int = DEFAULT_TOP_N,
     loader: TushareDataLoader | None = None,
+    shadow_days: int = 10,
+    save_snapshot: bool = True,
 ) -> dict[str, Any]:
     active_loader = loader or TushareDataLoader()
     market_data = active_loader.load_market_data(trade_date)
@@ -137,6 +140,11 @@ def build_stock_picks(
         backtest_metrics=backtest["metrics"],
     )
     signal_summary = summarize_signals(signals)
+    shadow_portfolio = build_shadow_portfolio(
+        market_data,
+        top_n=top_n,
+        lookback_days=shadow_days,
+    )
     universe_hash = build_universe_hash(tradable_universe["ts_code"].astype(str))
     snapshot = create_snapshot(
         trading_date=format_api_date(market_data.trade_date),
@@ -160,7 +168,13 @@ def build_stock_picks(
                 "metrics": backtest["metrics"],
                 "assumptions": backtest["assumptions"],
             },
+            "shadow_portfolio": {
+                "summary": shadow_portfolio.get("summary", {}),
+                "metrics": shadow_portfolio.get("metrics", {}),
+                "assumptions": shadow_portfolio.get("assumptions", {}),
+            },
         },
+        persist=save_snapshot,
     )
 
     return {
@@ -180,6 +194,7 @@ def build_stock_picks(
         "portfolio_stability": portfolio_stability,
         "signals": signals,
         "signal_summary": signal_summary,
+        "shadow_portfolio": shadow_portfolio,
         "backtest": backtest,
         "universe_size": int(len(tradable_universe)),
         "portfolio": portfolio_result["positions"],

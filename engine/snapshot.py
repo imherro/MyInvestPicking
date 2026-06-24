@@ -30,6 +30,7 @@ def create_snapshot(
     source: str,
     mock_mode: bool,
     results: Any,
+    persist: bool = True,
 ) -> dict[str, Any]:
     snapshot_body = {
         "trading_date": trading_date,
@@ -47,17 +48,18 @@ def create_snapshot(
         **snapshot_body,
     }
 
-    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
-    snapshot_path = SNAPSHOT_DIR / f"{snapshot_id}.json"
-    if not snapshot_path.exists():
-        snapshot_path.write_text(
-            json.dumps(snapshot, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+    if persist:
+        SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        snapshot_path = SNAPSHOT_DIR / f"{snapshot_id}.json"
+        if not snapshot_path.exists():
+            snapshot_path.write_text(
+                json.dumps(snapshot, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
 
     return {
         "snapshot_id": snapshot_id,
         "factor_version": FACTOR_VERSION,
         "universe_hash": universe_hash,
-        "snapshot_saved": True,
+        "snapshot_saved": persist,
     }
