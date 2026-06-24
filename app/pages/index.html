@@ -38,7 +38,7 @@
         padding: 40px 0;
       }
 
-      header {
+      .page-header {
         display: flex;
         align-items: flex-end;
         justify-content: space-between;
@@ -239,7 +239,7 @@
       }
 
       @media (max-width: 640px) {
-        header,
+        .page-header,
         .toolbar {
           align-items: flex-start;
           flex-direction: column;
@@ -257,8 +257,9 @@
     </style>
   </head>
   <body>
+    <div data-myinvest-header></div>
     <main>
-      <header>
+      <header class="page-header">
         <div>
           <h1>MyInvestPicking</h1>
           <div class="status">Next-day heavy-position stock picking workbench</div>
@@ -297,6 +298,9 @@
         </div>
       </section>
     </main>
+    <div data-myinvest-footer></div>
+    <script src="https://invest.okbbc.com/header.js" data-target="[data-myinvest-header]" defer></script>
+    <script src="https://invest.okbbc.com/footer.js" data-target="[data-myinvest-footer]" defer></script>
     <script>
       const picksBody = document.querySelector("#picks");
       const summary = document.querySelector("#summary");

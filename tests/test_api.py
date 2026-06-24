@@ -25,6 +25,11 @@ def test_index_page() -> None:
     response = client.get("/")
     assert response.status_code == 200
     assert "MyInvestPicking" in response.text
+    assert '<div data-myinvest-header></div>' in response.text
+    assert '<div data-myinvest-footer></div>' in response.text
+    assert 'src="https://invest.okbbc.com/header.js"' in response.text
+    assert 'src="https://invest.okbbc.com/footer.js"' in response.text
+    assert '<header class="page-header">' in response.text
 
 
 def test_picks_endpoint_returns_structured_results() -> None:
