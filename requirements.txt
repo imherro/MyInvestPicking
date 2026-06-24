@@ -2,3 +2,5 @@ fastapi
 uvicorn
 tushare
 pandas
+pytest
+httpx

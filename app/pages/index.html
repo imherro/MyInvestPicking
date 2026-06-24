@@ -90,20 +90,54 @@
         font-weight: 600;
       }
 
-      .empty {
-        display: grid;
-        place-items: center;
-        min-height: 280px;
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      th,
+      td {
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      td {
+        font-size: 14px;
+      }
+
+      td:nth-child(1),
+      th:nth-child(1) {
+        width: 120px;
+      }
+
+      td:nth-child(3),
+      th:nth-child(3) {
+        width: 96px;
+      }
+
+      .empty,
+      .error {
         padding: 32px;
         color: var(--muted);
         text-align: center;
       }
 
-      .empty strong {
-        display: block;
-        margin-bottom: 8px;
-        color: var(--text);
-        font-size: 18px;
+      .error {
+        color: #b42318;
       }
 
       @media (max-width: 640px) {
@@ -137,15 +171,72 @@
       <section class="panel" aria-labelledby="top-picks-title">
         <div class="toolbar">
           <h2 id="top-picks-title">Today&apos;s Top Picks</h2>
-          <div class="status">/api/picks</div>
+          <div class="status" id="summary">Loading /api/picks</div>
         </div>
-        <div class="empty">
-          <div>
-            <strong>No data yet.</strong>
-            Engine not initialized.
-          </div>
+        <div class="table-wrap">
+          <table aria-label="Stock picks">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Score</th>
+                <th>Momentum</th>
+                <th>Quality</th>
+                <th>Value</th>
+                <th>Risk</th>
+              </tr>
+            </thead>
+            <tbody id="picks">
+              <tr>
+                <td colspan="7" class="empty">No data yet. Engine not initialized.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </main>
+    <script>
+      const picksBody = document.querySelector("#picks");
+      const summary = document.querySelector("#summary");
+
+      const formatValue = (value) => {
+        if (value === null || value === undefined) return "-";
+        return Number(value).toFixed(4);
+      };
+
+      fetch("/api/picks")
+        .then((response) => response.json())
+        .then((payload) => {
+          const data = payload.data || [];
+          summary.textContent = `${payload.date} | ${payload.source}${payload.mock_mode ? " mock" : ""} | ${data.length} picks`;
+
+          if (data.length === 0) {
+            picksBody.innerHTML =
+              '<tr><td colspan="7" class="empty">No data yet. Engine not initialized.</td></tr>';
+            return;
+          }
+
+          picksBody.innerHTML = data
+            .map(
+              (pick) => `
+                <tr>
+                  <td>${pick.code}</td>
+                  <td>${pick.name || "-"}</td>
+                  <td>${formatValue(pick.score)}</td>
+                  <td>${formatValue(pick.factors?.momentum)}</td>
+                  <td>${formatValue(pick.factors?.quality)}</td>
+                  <td>${formatValue(pick.factors?.value)}</td>
+                  <td>${formatValue(pick.factors?.risk)}</td>
+                </tr>
+              `,
+            )
+            .join("");
+        })
+        .catch(() => {
+          summary.textContent = "API unavailable";
+          picksBody.innerHTML =
+            '<tr><td colspan="7" class="error">Failed to load picks.</td></tr>';
+        });
+    </script>
   </body>
 </html>
