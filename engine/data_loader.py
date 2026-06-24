@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import hashlib
 import random
+import time
 from typing import Optional
 
 import pandas as pd
@@ -76,6 +77,16 @@ class TushareDataLoader:
         start_date = (
             datetime.strptime(latest_trade_date, "%Y%m%d") - timedelta(days=90)
         ).strftime("%Y%m%d")
+        window_calendar = self._cached_dataframe(
+            "calendar",
+            f"trade_cal_{start_date}_{latest_trade_date}",
+            lambda: pro.trade_cal(
+                exchange="SSE",
+                start_date=start_date,
+                end_date=latest_trade_date,
+                fields="cal_date,is_open",
+            ),
+        )
 
         stock_basic = self._cached_dataframe(
             "universe",
@@ -89,8 +100,13 @@ class TushareDataLoader:
         )
         daily = self._cached_dataframe(
             "daily",
-            f"daily_{start_date}_{latest_trade_date}",
-            lambda: pro.daily(start_date=start_date, end_date=latest_trade_date),
+            f"daily_window_v2_{start_date}_{latest_trade_date}",
+            lambda: self._load_daily_window(
+                pro,
+                window_calendar,
+                start_date,
+                latest_trade_date,
+            ),
         )
         if daily.empty:
             raise ValueError("Tushare returned no daily rows")
@@ -246,6 +262,63 @@ class TushareDataLoader:
             frame = pd.DataFrame()
         self.cache.set_dataframe(namespace, key, frame)
         return frame
+
+    def _load_daily_window(
+        self,
+        pro,
+        calendar: pd.DataFrame,
+        start_date: str,
+        end_date: str,
+    ) -> pd.DataFrame:
+        if not calendar.empty and {"cal_date", "is_open"} <= set(calendar.columns):
+            open_dates = (
+                calendar[
+                    (calendar["cal_date"].astype(str) >= start_date)
+                    & (calendar["cal_date"].astype(str) <= end_date)
+                    & (pd.to_numeric(calendar["is_open"], errors="coerce") == 1)
+                ]["cal_date"]
+                .astype(str)
+                .sort_values()
+                .tolist()
+            )
+        else:
+            open_dates = [
+                day.strftime("%Y%m%d")
+                for day in pd.bdate_range(
+                    start=datetime.strptime(start_date, "%Y%m%d"),
+                    end=datetime.strptime(end_date, "%Y%m%d"),
+                )
+            ]
+
+        frames = []
+        for day in open_dates:
+            try:
+                frame = self._cached_dataframe(
+                    "daily",
+                    f"daily_by_date_{day}",
+                    lambda day=day: self._fetch_daily_with_retry(pro, day),
+                )
+            except Exception:
+                continue
+            if not frame.empty:
+                frames.append(frame)
+        if not frames:
+            return pd.DataFrame()
+        return pd.concat(frames, ignore_index=True)
+
+    @staticmethod
+    def _fetch_daily_with_retry(pro, trade_date: str, attempts: int = 3) -> pd.DataFrame:
+        last_error: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                return pro.daily(trade_date=trade_date)
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                if attempt < attempts - 1:
+                    time.sleep(0.5 * (attempt + 1))
+        if last_error is not None:
+            raise last_error
+        return pd.DataFrame()
 
     def _load_financial_indicator(self, pro, period: str) -> pd.DataFrame:
         try:

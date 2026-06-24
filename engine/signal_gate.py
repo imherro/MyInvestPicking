@@ -14,6 +14,7 @@ def build_signal_decision(
     confidence: dict[str, Any],
     market_regime: dict[str, Any],
     correlation_context: dict[str, Any],
+    backtest_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     final_score = _to_float(position.get("final_score"), 0.0)
     confidence_score = _to_float(confidence.get("confidence"), 0.0)
@@ -23,6 +24,7 @@ def build_signal_decision(
         tradability=tradability,
         market_regime=market_regime,
         correlation_context=correlation_context,
+        backtest_context=backtest_context or {},
     )
     position_size = _position_size(position, action)
     return {
@@ -35,6 +37,7 @@ def build_signal_decision(
             confidence=confidence,
             market_regime=market_regime,
             correlation_context=correlation_context,
+            backtest_context=backtest_context or {},
             action=action,
         ),
     }
@@ -46,9 +49,14 @@ def _action(
     tradability: dict[str, Any],
     market_regime: dict[str, Any],
     correlation_context: dict[str, Any],
+    backtest_context: dict[str, Any],
 ) -> str:
     if not tradability.get("tradable"):
         return "NO_TRADE"
+    if backtest_context.get("block_buy"):
+        return "NO_TRADE"
+    if backtest_context.get("caution") and confidence_score < 0.75:
+        return "HOLD"
     if str(market_regime.get("state") or "") == "crash" and confidence_score < 0.80:
         return "NO_TRADE"
     if correlation_context.get("cluster_block") and confidence_score < 0.75:
@@ -72,6 +80,7 @@ def _reason_payload(
     confidence: dict[str, Any],
     market_regime: dict[str, Any],
     correlation_context: dict[str, Any],
+    backtest_context: dict[str, Any],
     action: str,
 ) -> dict[str, Any]:
     return {
@@ -82,6 +91,7 @@ def _reason_payload(
         "tradability_reasons": tradability.get("reasons", []),
         "confidence_components": confidence.get("components", {}),
         "correlation": correlation_context,
+        "backtest": backtest_context,
     }
 
 

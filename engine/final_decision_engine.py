@@ -11,6 +11,7 @@ def build_final_signals(
     positions: list[dict[str, Any]],
     market_regime: dict[str, Any],
     correlation_risk: dict[str, Any],
+    backtest_metrics: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     signals = []
     for position in positions:
@@ -23,6 +24,7 @@ def build_final_signals(
             confidence=confidence,
             market_regime=market_regime,
             correlation_context=correlation_context,
+            backtest_context=_backtest_context(backtest_metrics or {}),
         )
         signals.append(
             {
@@ -100,6 +102,18 @@ def _correlation_context(
         "cluster_size": 0,
         "avg_correlation": 0.0,
         "cluster_block": False,
+    }
+
+
+def _backtest_context(metrics: dict[str, Any]) -> dict[str, Any]:
+    sharpe = float(metrics.get("sharpe") or 0)
+    max_drawdown = float(metrics.get("max_drawdown") or 0)
+    return {
+        "sharpe": round(sharpe, 6),
+        "max_drawdown": round(max_drawdown, 6),
+        "turnover": metrics.get("turnover"),
+        "block_buy": sharpe < 0 or max_drawdown <= -0.08,
+        "caution": sharpe < 0.50 or max_drawdown <= -0.05,
     }
 
 

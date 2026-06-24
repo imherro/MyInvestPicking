@@ -129,13 +129,14 @@ def build_stock_picks(
         correlation_risk["clusters"],
     )
     portfolio_stability = compute_portfolio_stability(portfolio_result["positions"])
+    backtest = run_backtest(market_data, portfolio_result["positions"])
     signals = build_final_signals(
         portfolio_result["positions"],
         market_regime=market_regime,
         correlation_risk=correlation_risk,
+        backtest_metrics=backtest["metrics"],
     )
     signal_summary = summarize_signals(signals)
-    backtest = run_backtest(market_data, portfolio_result["positions"])
     universe_hash = build_universe_hash(tradable_universe["ts_code"].astype(str))
     snapshot = create_snapshot(
         trading_date=format_api_date(market_data.trade_date),

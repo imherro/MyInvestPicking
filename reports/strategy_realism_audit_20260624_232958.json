@@ -1,0 +1,814 @@
+{
+  "generated_at": "2026-06-24T23:29:58",
+  "top_n": 20,
+  "dates": [
+    "2020-03-23",
+    "2022-10-31",
+    "2024-02-05",
+    "2026-06-24"
+  ],
+  "snapshots": [
+    {
+      "date": "2020-03-23",
+      "requested_date": "2020-03-23",
+      "status": "ok",
+      "source": "tushare",
+      "mock_mode": false,
+      "regime": {
+        "state": "crash",
+        "confidence": 1.0,
+        "return_5d": -0.033575,
+        "return_20d": -0.092028,
+        "return_60d": 0.334282,
+        "volatility_20d": 0.023122,
+        "volume_trend_20d": -0.267983
+      },
+      "risk": {
+        "max_position_per_stock": 0.05,
+        "max_industry_weight": 0.2,
+        "max_cluster_weight": 0.25,
+        "max_beijing_weight": 0.03,
+        "target_exposure": 0.4,
+        "portfolio_exposure": 0.4,
+        "industry_exposure": {
+          "中成药": 0.021053,
+          "供气供热": 0.017544,
+          "农药化肥": 0.021053,
+          "化学制药": 0.084212,
+          "区域地产": 0.021053,
+          "医药商业": 0.021053,
+          "房产服务": 0.021053,
+          "普钢": 0.017544,
+          "水务": 0.021053,
+          "水泥": 0.017538,
+          "火力发电": 0.017544,
+          "特种钢": 0.021053,
+          "环境保护": 0.035088,
+          "生物制药": 0.021053,
+          "电气设备": 0.021053,
+          "百货": 0.021053
+        },
+        "exchange_exposure": {
+          "SH": 0.252629,
+          "SZ": 0.147371
+        },
+        "cluster_exposure": {
+          "cluster_1": 0.1,
+          "cluster_2": 0.25
+        },
+        "estimated_drawdown": 0.018606,
+        "drawdown_guard": {
+          "triggered": false,
+          "threshold": 0.04,
+          "scale": 1.0
+        },
+        "expected_volatility": 0.009303,
+        "cash_weight": 0.6,
+        "risk_level": "low"
+      },
+      "signal_summary": {
+        "counts": {
+          "BUY": 0,
+          "HOLD": 0,
+          "NO_TRADE": 20
+        },
+        "buy_exposure": 0,
+        "average_confidence": 0.7643
+      },
+      "buy_codes": [],
+      "top_signals": [
+        {
+          "code": "600399.SH",
+          "name": "抚顺特钢",
+          "action": "NO_TRADE",
+          "confidence": 0.8189,
+          "position_size": 0.0,
+          "final_score": 0.6462
+        },
+        {
+          "code": "600021.SH",
+          "name": "上海电力",
+          "action": "NO_TRADE",
+          "confidence": 0.8174,
+          "position_size": 0.0,
+          "final_score": 0.6177
+        },
+        {
+          "code": "601139.SH",
+          "name": "深圳燃气",
+          "action": "NO_TRADE",
+          "confidence": 0.8084,
+          "position_size": 0.0,
+          "final_score": 0.6417
+        },
+        {
+          "code": "600475.SH",
+          "name": "华光环能",
+          "action": "NO_TRADE",
+          "confidence": 0.8024,
+          "position_size": 0.0,
+          "final_score": 0.6286
+        },
+        {
+          "code": "600874.SH",
+          "name": "创业环保",
+          "action": "NO_TRADE",
+          "confidence": 0.7926,
+          "position_size": 0.0,
+          "final_score": 0.6366
+        },
+        {
+          "code": "000011.SZ",
+          "name": "深物业A",
+          "action": "NO_TRADE",
+          "confidence": 0.7843,
+          "position_size": 0.0,
+          "final_score": 0.5695
+        },
+        {
+          "code": "601366.SH",
+          "name": "利群股份",
+          "action": "NO_TRADE",
+          "confidence": 0.783,
+          "position_size": 0.0,
+          "final_score": 0.6434
+        },
+        {
+          "code": "603590.SH",
+          "name": "康辰药业",
+          "action": "NO_TRADE",
+          "confidence": 0.775,
+          "position_size": 0.0,
+          "final_score": 0.5975
+        },
+        {
+          "code": "600449.SH",
+          "name": "宁夏建材",
+          "action": "NO_TRADE",
+          "confidence": 0.7691,
+          "position_size": 0.0,
+          "final_score": 0.5638
+        },
+        {
+          "code": "002539.SZ",
+          "name": "云图控股",
+          "action": "NO_TRADE",
+          "confidence": 0.7648,
+          "position_size": 0.0,
+          "final_score": 0.5685
+        }
+      ],
+      "backtest_metrics": {
+        "cagr": -0.008013,
+        "sharpe": -0.04928,
+        "max_drawdown": -0.02525,
+        "turnover": 8.9,
+        "win_rate": 0.482759
+      },
+      "equity_curve_points": 30,
+      "drawdown_curve_points": 30
+    },
+    {
+      "date": "2022-10-31",
+      "requested_date": "2022-10-31",
+      "status": "ok",
+      "source": "tushare",
+      "mock_mode": false,
+      "regime": {
+        "state": "range",
+        "confidence": 0.621,
+        "return_5d": -0.009749,
+        "return_20d": 0.015808,
+        "return_60d": -0.076955,
+        "volatility_20d": 0.016962,
+        "volume_trend_20d": 0.181557
+      },
+      "risk": {
+        "max_position_per_stock": 0.1,
+        "max_industry_weight": 0.3,
+        "max_cluster_weight": 0.45,
+        "max_beijing_weight": 0.15,
+        "target_exposure": 0.85,
+        "portfolio_exposure": 0.85,
+        "industry_exposure": {
+          "中成药": 0.13036,
+          "医疗保健": 0.042751,
+          "医药商业": 0.1701,
+          "塑料": 0.043976,
+          "水务": 0.042039,
+          "汽车配件": 0.041628,
+          "环境保护": 0.04234,
+          "证券": 0.082826,
+          "软件服务": 0.211154,
+          "运输设备": 0.042826
+        },
+        "exchange_exposure": {
+          "SH": 0.554953,
+          "SZ": 0.295047
+        },
+        "cluster_exposure": {
+          "cluster_1": 0.150354,
+          "cluster_2": 0.353482,
+          "cluster_3": 0.197284
+        },
+        "estimated_drawdown": 0.030706,
+        "drawdown_guard": {
+          "triggered": false,
+          "threshold": 0.08,
+          "scale": 1.0
+        },
+        "expected_volatility": 0.015353,
+        "cash_weight": 0.15,
+        "risk_level": "low"
+      },
+      "signal_summary": {
+        "counts": {
+          "BUY": 18,
+          "HOLD": 2,
+          "NO_TRADE": 0
+        },
+        "buy_exposure": 0.764909,
+        "average_confidence": 0.7926
+      },
+      "buy_codes": [
+        "300230.SZ",
+        "601555.SH",
+        "688009.SH",
+        "601108.SH",
+        "600718.SH",
+        "600271.SH",
+        "601607.SH",
+        "600713.SH",
+        "002649.SZ",
+        "603858.SH",
+        "300231.SZ",
+        "603368.SH",
+        "002048.SZ",
+        "600572.SH",
+        "600594.SH",
+        "600008.SH",
+        "000555.SZ",
+        "000950.SZ"
+      ],
+      "top_signals": [
+        {
+          "code": "300230.SZ",
+          "name": "永利股份",
+          "action": "BUY",
+          "confidence": 0.8222,
+          "position_size": 0.043976,
+          "final_score": 0.6426
+        },
+        {
+          "code": "601555.SH",
+          "name": "东吴证券",
+          "action": "BUY",
+          "confidence": 0.822,
+          "position_size": 0.041615,
+          "final_score": 0.6081
+        },
+        {
+          "code": "688009.SH",
+          "name": "中国通号",
+          "action": "BUY",
+          "confidence": 0.8212,
+          "position_size": 0.042826,
+          "final_score": 0.6258
+        },
+        {
+          "code": "601108.SH",
+          "name": "财通证券",
+          "action": "BUY",
+          "confidence": 0.8163,
+          "position_size": 0.041211,
+          "final_score": 0.6022
+        },
+        {
+          "code": "600718.SH",
+          "name": "东软集团",
+          "action": "BUY",
+          "confidence": 0.8134,
+          "position_size": 0.042217,
+          "final_score": 0.6169
+        },
+        {
+          "code": "600271.SH",
+          "name": "航天信息",
+          "action": "BUY",
+          "confidence": 0.8119,
+          "position_size": 0.04349,
+          "final_score": 0.6355
+        },
+        {
+          "code": "601607.SH",
+          "name": "上海医药",
+          "action": "BUY",
+          "confidence": 0.8094,
+          "position_size": 0.042621,
+          "final_score": 0.6228
+        },
+        {
+          "code": "600713.SH",
+          "name": "南京医药",
+          "action": "BUY",
+          "confidence": 0.8031,
+          "position_size": 0.041389,
+          "final_score": 0.6048
+        },
+        {
+          "code": "002649.SZ",
+          "name": "博彦科技",
+          "action": "BUY",
+          "confidence": 0.8029,
+          "position_size": 0.041136,
+          "final_score": 0.6011
+        },
+        {
+          "code": "603858.SH",
+          "name": "步长制药",
+          "action": "BUY",
+          "confidence": 0.7998,
+          "position_size": 0.044311,
+          "final_score": 0.6475
+        }
+      ],
+      "backtest_metrics": {
+        "cagr": 0.236658,
+        "sharpe": 1.218863,
+        "max_drawdown": -0.077253,
+        "turnover": 2.6,
+        "win_rate": 0.517241
+      },
+      "equity_curve_points": 30,
+      "drawdown_curve_points": 30
+    },
+    {
+      "date": "2024-02-05",
+      "requested_date": "2024-02-05",
+      "status": "ok",
+      "source": "tushare",
+      "mock_mode": false,
+      "regime": {
+        "state": "crash",
+        "confidence": 1.0,
+        "return_5d": -0.197951,
+        "return_20d": -0.265194,
+        "return_60d": -0.275803,
+        "volatility_20d": 0.027078,
+        "volume_trend_20d": 0.181332
+      },
+      "risk": {
+        "max_position_per_stock": 0.05,
+        "max_industry_weight": 0.2,
+        "max_cluster_weight": 0.25,
+        "max_beijing_weight": 0.03,
+        "target_exposure": 0.4,
+        "portfolio_exposure": 0.4,
+        "industry_exposure": {
+          "其他建材": 0.02,
+          "化工原料": 0.02,
+          "家用电器": 0.04,
+          "工程机械": 0.02,
+          "普钢": 0.02,
+          "水泥": 0.04,
+          "港口": 0.02,
+          "火力发电": 0.02,
+          "煤炭开采": 0.04,
+          "特种钢": 0.02,
+          "路桥": 0.04,
+          "铁路": 0.02,
+          "银行": 0.08
+        },
+        "exchange_exposure": {
+          "SH": 0.26,
+          "SZ": 0.14
+        },
+        "cluster_exposure": {
+          "cluster_1": 0.1,
+          "cluster_2": 0.1
+        },
+        "estimated_drawdown": 0.011236,
+        "drawdown_guard": {
+          "triggered": false,
+          "threshold": 0.04,
+          "scale": 1.0
+        },
+        "expected_volatility": 0.005618,
+        "cash_weight": 0.6,
+        "risk_level": "low"
+      },
+      "signal_summary": {
+        "counts": {
+          "BUY": 12,
+          "HOLD": 0,
+          "NO_TRADE": 8
+        },
+        "buy_exposure": 0.24,
+        "average_confidence": 0.8079
+      },
+      "buy_codes": [
+        "601939.SH",
+        "603077.SH",
+        "601006.SH",
+        "600919.SH",
+        "000983.SZ",
+        "601328.SH",
+        "000877.SZ",
+        "600585.SH",
+        "000651.SZ",
+        "000429.SZ",
+        "000528.SZ",
+        "601000.SH"
+      ],
+      "top_signals": [
+        {
+          "code": "601939.SH",
+          "name": "建设银行",
+          "action": "BUY",
+          "confidence": 0.8549,
+          "position_size": 0.02,
+          "final_score": 0.7207
+        },
+        {
+          "code": "603077.SH",
+          "name": "和邦生物",
+          "action": "BUY",
+          "confidence": 0.8461,
+          "position_size": 0.02,
+          "final_score": 0.6935
+        },
+        {
+          "code": "601006.SH",
+          "name": "大秦铁路",
+          "action": "BUY",
+          "confidence": 0.844,
+          "position_size": 0.02,
+          "final_score": 0.6928
+        },
+        {
+          "code": "600919.SH",
+          "name": "江苏银行",
+          "action": "BUY",
+          "confidence": 0.8348,
+          "position_size": 0.02,
+          "final_score": 0.6463
+        },
+        {
+          "code": "000983.SZ",
+          "name": "山西焦煤",
+          "action": "BUY",
+          "confidence": 0.8262,
+          "position_size": 0.02,
+          "final_score": 0.6439
+        },
+        {
+          "code": "601328.SH",
+          "name": "交通银行",
+          "action": "BUY",
+          "confidence": 0.826,
+          "position_size": 0.02,
+          "final_score": 0.6484
+        },
+        {
+          "code": "000877.SZ",
+          "name": "天山股份",
+          "action": "BUY",
+          "confidence": 0.8237,
+          "position_size": 0.02,
+          "final_score": 0.6565
+        },
+        {
+          "code": "600585.SH",
+          "name": "海螺水泥",
+          "action": "BUY",
+          "confidence": 0.8169,
+          "position_size": 0.02,
+          "final_score": 0.6381
+        },
+        {
+          "code": "000651.SZ",
+          "name": "格力电器",
+          "action": "BUY",
+          "confidence": 0.8106,
+          "position_size": 0.02,
+          "final_score": 0.6785
+        },
+        {
+          "code": "000429.SZ",
+          "name": "粤高速A",
+          "action": "BUY",
+          "confidence": 0.8082,
+          "position_size": 0.02,
+          "final_score": 0.6436
+        }
+      ],
+      "backtest_metrics": {
+        "cagr": 0.090073,
+        "sharpe": 1.47313,
+        "max_drawdown": -0.023059,
+        "turnover": 8.9,
+        "win_rate": 0.551724
+      },
+      "equity_curve_points": 30,
+      "drawdown_curve_points": 30
+    },
+    {
+      "date": "2026-06-24",
+      "requested_date": "2026-06-24",
+      "status": "ok",
+      "source": "tushare",
+      "mock_mode": false,
+      "regime": {
+        "state": "range",
+        "confidence": 0.55,
+        "return_5d": -0.011427,
+        "return_20d": -0.046599,
+        "return_60d": 0.015996,
+        "volatility_20d": 0.012264,
+        "volume_trend_20d": 0.042203
+      },
+      "risk": {
+        "max_position_per_stock": 0.1,
+        "max_industry_weight": 0.3,
+        "max_cluster_weight": 0.45,
+        "max_beijing_weight": 0.15,
+        "target_exposure": 0.85,
+        "portfolio_exposure": 0.85,
+        "industry_exposure": {
+          "中成药": 0.08485,
+          "仓储物流": 0.042315,
+          "农业综合": 0.042661,
+          "化学制药": 0.170829,
+          "医疗保健": 0.086839,
+          "医药商业": 0.041687,
+          "家居用品": 0.041645,
+          "生物制药": 0.041425,
+          "证券": 0.256104,
+          "食品": 0.041645
+        },
+        "exchange_exposure": {
+          "SH": 0.42671,
+          "SZ": 0.42329
+        },
+        "cluster_exposure": {
+          "cluster_1": 0.2993
+        },
+        "estimated_drawdown": 0.031435,
+        "drawdown_guard": {
+          "triggered": false,
+          "threshold": 0.08,
+          "scale": 1.0
+        },
+        "expected_volatility": 0.015718,
+        "cash_weight": 0.15,
+        "risk_level": "low"
+      },
+      "signal_summary": {
+        "counts": {
+          "BUY": 0,
+          "HOLD": 0,
+          "NO_TRADE": 20
+        },
+        "buy_exposure": 0,
+        "average_confidence": 0.7742
+      },
+      "buy_codes": [],
+      "top_signals": [
+        {
+          "code": "000728.SZ",
+          "name": "国元证券",
+          "action": "NO_TRADE",
+          "confidence": 0.8265,
+          "position_size": 0.0,
+          "final_score": 0.6429
+        },
+        {
+          "code": "600713.SH",
+          "name": "南京医药",
+          "action": "NO_TRADE",
+          "confidence": 0.8201,
+          "position_size": 0.0,
+          "final_score": 0.5907
+        },
+        {
+          "code": "603456.SH",
+          "name": "九洲药业",
+          "action": "NO_TRADE",
+          "confidence": 0.8152,
+          "position_size": 0.0,
+          "final_score": 0.6324
+        },
+        {
+          "code": "601901.SH",
+          "name": "方正证券",
+          "action": "NO_TRADE",
+          "confidence": 0.7983,
+          "position_size": 0.0,
+          "final_score": 0.6219
+        },
+        {
+          "code": "600999.SH",
+          "name": "招商证券",
+          "action": "NO_TRADE",
+          "confidence": 0.7891,
+          "position_size": 0.0,
+          "final_score": 0.616
+        },
+        {
+          "code": "002926.SZ",
+          "name": "华西证券",
+          "action": "NO_TRADE",
+          "confidence": 0.7875,
+          "position_size": 0.0,
+          "final_score": 0.608
+        },
+        {
+          "code": "300871.SZ",
+          "name": "回盛生物",
+          "action": "NO_TRADE",
+          "confidence": 0.7869,
+          "position_size": 0.0,
+          "final_score": 0.6045
+        },
+        {
+          "code": "002393.SZ",
+          "name": "力生制药",
+          "action": "NO_TRADE",
+          "confidence": 0.7851,
+          "position_size": 0.0,
+          "final_score": 0.5896
+        },
+        {
+          "code": "002500.SZ",
+          "name": "山西证券",
+          "action": "NO_TRADE",
+          "confidence": 0.7815,
+          "position_size": 0.0,
+          "final_score": 0.6017
+        },
+        {
+          "code": "000623.SZ",
+          "name": "吉林敖东",
+          "action": "NO_TRADE",
+          "confidence": 0.7758,
+          "position_size": 0.0,
+          "final_score": 0.5988
+        }
+      ],
+      "backtest_metrics": {
+        "cagr": -0.2823,
+        "sharpe": -2.000676,
+        "max_drawdown": -0.099264,
+        "turnover": 2.6,
+        "win_rate": 0.37931
+      },
+      "equity_curve_points": 30,
+      "drawdown_curve_points": 30
+    }
+  ],
+  "signal_stability": {
+    "transitions": [
+      {
+        "from": "2020-03-23",
+        "to": "2022-10-31",
+        "buy_overlap_jaccard": 0.0,
+        "from_buy_count": 0,
+        "to_buy_count": 18
+      },
+      {
+        "from": "2022-10-31",
+        "to": "2024-02-05",
+        "buy_overlap_jaccard": 0.0,
+        "from_buy_count": 18,
+        "to_buy_count": 12
+      },
+      {
+        "from": "2024-02-05",
+        "to": "2026-06-24",
+        "buy_overlap_jaccard": 0.0,
+        "from_buy_count": 12,
+        "to_buy_count": 0
+      }
+    ],
+    "average_buy_overlap_jaccard": 0.0
+  },
+  "cost_stress": [
+    {
+      "date": "2020-03-23",
+      "base_cagr": -0.008013,
+      "base_sharpe": -0.04928,
+      "base_max_drawdown": -0.02525,
+      "scenarios": [
+        {
+          "slippage": 0.001,
+          "turnover": 8.9,
+          "estimated_cagr_after_slippage": -0.016913
+        },
+        {
+          "slippage": 0.003,
+          "turnover": 8.9,
+          "estimated_cagr_after_slippage": -0.034713
+        },
+        {
+          "slippage": 0.005,
+          "turnover": 8.9,
+          "estimated_cagr_after_slippage": -0.052513
+        }
+      ]
+    },
+    {
+      "date": "2022-10-31",
+      "base_cagr": 0.236658,
+      "base_sharpe": 1.218863,
+      "base_max_drawdown": -0.077253,
+      "scenarios": [
+        {
+          "slippage": 0.001,
+          "turnover": 2.6,
+          "estimated_cagr_after_slippage": 0.234058
+        },
+        {
+          "slippage": 0.003,
+          "turnover": 2.6,
+          "estimated_cagr_after_slippage": 0.228858
+        },
+        {
+          "slippage": 0.005,
+          "turnover": 2.6,
+          "estimated_cagr_after_slippage": 0.223658
+        }
+      ]
+    },
+    {
+      "date": "2024-02-05",
+      "base_cagr": 0.090073,
+      "base_sharpe": 1.47313,
+      "base_max_drawdown": -0.023059,
+      "scenarios": [
+        {
+          "slippage": 0.001,
+          "turnover": 8.9,
+          "estimated_cagr_after_slippage": 0.081173
+        },
+        {
+          "slippage": 0.003,
+          "turnover": 8.9,
+          "estimated_cagr_after_slippage": 0.063373
+        },
+        {
+          "slippage": 0.005,
+          "turnover": 8.9,
+          "estimated_cagr_after_slippage": 0.045573
+        }
+      ]
+    },
+    {
+      "date": "2026-06-24",
+      "base_cagr": -0.2823,
+      "base_sharpe": -2.000676,
+      "base_max_drawdown": -0.099264,
+      "scenarios": [
+        {
+          "slippage": 0.001,
+          "turnover": 2.6,
+          "estimated_cagr_after_slippage": -0.2849
+        },
+        {
+          "slippage": 0.003,
+          "turnover": 2.6,
+          "estimated_cagr_after_slippage": -0.2901
+        },
+        {
+          "slippage": 0.005,
+          "turnover": 2.6,
+          "estimated_cagr_after_slippage": -0.2953
+        }
+      ]
+    }
+  ],
+  "regime_audit": {
+    "regime_counts": {
+      "crash": 2,
+      "range": 2
+    },
+    "average_buy_exposure_by_regime": {
+      "crash": 0.12,
+      "range": 0.382454
+    }
+  },
+  "validation_summary": {
+    "status": "passed",
+    "reasons": [],
+    "completed_checks": [
+      "A1_multi_date_strategy_realism",
+      "A1_historical_vs_current_split",
+      "A2_signal_churn_overfit_check",
+      "A2_regime_dependency_check",
+      "A3_transaction_cost_pressure",
+      "A4_extreme_regime_windows",
+      "A5_signal_consistency_audit",
+      "A6_equity_drawdown_exposure_curves",
+      "real_data_mode_check"
+    ]
+  }
+}
