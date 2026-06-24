@@ -7,9 +7,12 @@ import pandas as pd
 from config.settings import DEFAULT_TOP_N
 from engine.data_loader import TushareDataLoader, format_api_date
 from engine.factor_engine import compute_factors
+from engine.market_features import compute_market_features
+from engine.market_regime import detect_market_regime
 from engine.scoring import score_stocks
 from engine.snapshot import build_universe_hash, create_snapshot
 from engine.universe import filter_universe
+from risk.dynamic_risk_allocator import allocate_dynamic_risk_budget
 from risk.risk_engine import build_risk_managed_portfolio
 
 
@@ -33,6 +36,7 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
         "score": _round_float(row.get("score")),
         "final_score": _round_float(row.get("final_score")),
         "risk_adjust_factor": _round_float(row.get("risk_adjust_factor")),
+        "regime_multiplier": _round_float(row.get("regime_multiplier")),
         "factors": factors,
         "contribution": {
             "momentum": _round_float(row.get("momentum_contribution")),
@@ -77,6 +81,9 @@ def build_stock_picks(
 ) -> dict[str, Any]:
     active_loader = loader or TushareDataLoader()
     market_data = active_loader.load_market_data(trade_date)
+    market_features = compute_market_features(market_data.daily)
+    market_regime = detect_market_regime(market_features)
+    risk_budget = allocate_dynamic_risk_budget(market_regime)
     tradable_universe = filter_universe(market_data.stock_basic, market_data.daily)
     tradable_codes = set(tradable_universe["ts_code"].astype(str))
 
@@ -84,10 +91,10 @@ def build_stock_picks(
     if not factors.empty:
         factors = factors[factors["ts_code"].isin(tradable_codes)]
 
-    scored = score_stocks(factors)
+    scored = score_stocks(factors, regime_state=str(market_regime["state"]))
     selected = scored.head(max(top_n, 0))
     results = [_to_pick(row) for _, row in selected.iterrows()]
-    portfolio_result = build_risk_managed_portfolio(results)
+    portfolio_result = build_risk_managed_portfolio(results, risk_budget=risk_budget)
     universe_hash = build_universe_hash(tradable_universe["ts_code"].astype(str))
     snapshot = create_snapshot(
         trading_date=format_api_date(market_data.trade_date),
@@ -99,6 +106,8 @@ def build_stock_picks(
             "picks": results,
             "portfolio": portfolio_result["positions"],
             "risk": portfolio_result["risk"],
+            "market_regime": market_regime,
+            "risk_budget": risk_budget,
         },
     )
 
@@ -110,6 +119,9 @@ def build_stock_picks(
         "mock_mode": market_data.mock_mode,
         "data_version": market_data.data_version,
         **snapshot,
+        "market_features": market_features,
+        "market_regime": market_regime,
+        "risk_budget": risk_budget,
         "universe_size": int(len(tradable_universe)),
         "portfolio": portfolio_result["positions"],
         "risk": portfolio_result["risk"],

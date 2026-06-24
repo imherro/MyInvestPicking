@@ -26,6 +26,7 @@ http://localhost:8019
 - Basic universe filtering, factor calculation, and scoring
 - Score-weighted portfolio construction with position and industry caps
 - Drawdown guard and portfolio risk metrics
+- Market regime detection with dynamic risk budgets
 - Project structure for future strategy and risk modules
 
 ## Environment
@@ -51,6 +52,9 @@ Response fields include `trading_date`, `data_version`, `factor_version`,
 structured stock picks with `score`, normalized factor scores, weighted
 contributions, raw metrics, and a short reason list. The response also includes
 `portfolio` positions with ratio-only `weight` values and a `risk` summary.
+Market state is exposed through `market_regime` and `risk_budget`, allowing
+position and exposure limits to adapt to trend, range, crash, or high-volatility
+conditions.
 
 ## Runtime Data
 

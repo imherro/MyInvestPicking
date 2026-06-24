@@ -16,13 +16,20 @@ def build_portfolio(
     max_position_per_stock: float = DEFAULT_MAX_POSITION_PER_STOCK,
     max_industry_weight: float = DEFAULT_MAX_INDUSTRY_WEIGHT,
     drawdown_threshold: float = DEFAULT_DRAWDOWN_THRESHOLD,
+    target_exposure: float = 1.0,
 ) -> dict[str, Any]:
     if not picks:
-        return _empty_portfolio(max_position_per_stock, max_industry_weight, drawdown_threshold)
+        return _empty_portfolio(
+            max_position_per_stock,
+            max_industry_weight,
+            drawdown_threshold,
+            target_exposure,
+        )
 
     positions = _initial_score_weighted_positions(picks)
     positions = _cap_position_weights(positions, max_position_per_stock)
     positions, industry_exposure = cap_industry_exposure(positions, max_industry_weight)
+    positions = _scale_to_target_exposure(positions, target_exposure)
 
     estimated_drawdown = estimate_portfolio_drawdown(positions)
     positions, drawdown_guard = apply_drawdown_guard(
@@ -32,6 +39,7 @@ def build_portfolio(
     )
 
     positions = _round_positions(positions)
+    positions = _trim_rounding_excess(positions, target_exposure)
     industry_exposure = calculate_industry_exposure(positions)
     invested_weight = round(sum(position["weight"] for position in positions), 6)
     cash_weight = round(max(0.0, 1.0 - invested_weight), 6)
@@ -48,6 +56,8 @@ def build_portfolio(
         "risk": {
             "max_position_per_stock": max_position_per_stock,
             "max_industry_weight": max_industry_weight,
+            "target_exposure": target_exposure,
+            "portfolio_exposure": invested_weight,
             "industry_exposure": industry_exposure,
             "estimated_drawdown": estimated_drawdown,
             "drawdown_guard": drawdown_guard,
@@ -112,6 +122,34 @@ def _round_positions(positions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rounded
 
 
+def _trim_rounding_excess(
+    positions: list[dict[str, Any]],
+    target_exposure: float,
+) -> list[dict[str, Any]]:
+    exposure = round(sum(position["weight"] for position in positions), 6)
+    excess = round(exposure - target_exposure, 6)
+    if excess <= 0:
+        return positions
+
+    adjusted = [dict(position) for position in positions]
+    for position in reversed(adjusted):
+        if position["weight"] >= excess:
+            position["weight"] = round(position["weight"] - excess, 6)
+            break
+    return adjusted
+
+
+def _scale_to_target_exposure(
+    positions: list[dict[str, Any]],
+    target_exposure: float,
+) -> list[dict[str, Any]]:
+    current = sum(float(position.get("weight") or 0) for position in positions)
+    if current <= 0 or current <= target_exposure:
+        return positions
+    scale = target_exposure / current
+    return [dict(position, weight=float(position["weight"]) * scale) for position in positions]
+
+
 def _risk_level(estimated_drawdown: float, threshold: float) -> str:
     if estimated_drawdown >= threshold:
         return "high"
@@ -124,12 +162,15 @@ def _empty_portfolio(
     max_position_per_stock: float,
     max_industry_weight: float,
     drawdown_threshold: float,
+    target_exposure: float,
 ) -> dict[str, Any]:
     return {
         "positions": [],
         "risk": {
             "max_position_per_stock": max_position_per_stock,
             "max_industry_weight": max_industry_weight,
+            "target_exposure": target_exposure,
+            "portfolio_exposure": 0.0,
             "industry_exposure": {},
             "estimated_drawdown": 0.0,
             "drawdown_guard": {

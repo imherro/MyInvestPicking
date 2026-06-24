@@ -39,8 +39,14 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert payload["universe_hash"]
     assert len(payload["data"]) == 5
     assert len(payload["portfolio"]) == 5
-    assert payload["risk"]["max_position_per_stock"] == 0.1
-    assert payload["risk"]["max_industry_weight"] == 0.3
+    assert payload["market_regime"]["state"] in {"trend", "range", "crash", "high_vol"}
+    assert 0 <= payload["market_regime"]["confidence"] <= 1
+    assert payload["risk_budget"]["max_position_per_stock"] > 0
+    assert payload["risk_budget"]["target_exposure"] <= 0.95
+    assert payload["risk"]["max_position_per_stock"] == payload["risk_budget"][
+        "max_position_per_stock"
+    ]
+    assert payload["risk"]["portfolio_exposure"] <= payload["risk_budget"]["target_exposure"]
 
     first = payload["data"][0]
     assert {"code", "score", "final_score", "factors", "metrics", "contribution", "reason"} <= set(
@@ -53,8 +59,10 @@ def test_picks_endpoint_returns_structured_results() -> None:
 
     first_position = payload["portfolio"][0]
     assert {"code", "weight", "score", "final_score"} <= set(first_position)
-    assert first_position["weight"] <= 0.1
-    assert max(payload["risk"]["industry_exposure"].values()) <= 0.3
+    assert first_position["weight"] <= payload["risk_budget"]["max_position_per_stock"]
+    assert max(payload["risk"]["industry_exposure"].values()) <= payload["risk_budget"][
+        "max_industry_weight"
+    ]
 
 
 def test_picks_endpoint_is_deterministic_for_same_input() -> None:
@@ -66,3 +74,5 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["data"] == second["data"]
     assert first["portfolio"] == second["portfolio"]
     assert first["risk"] == second["risk"]
+    assert first["market_regime"] == second["market_regime"]
+    assert first["risk_budget"] == second["risk_budget"]

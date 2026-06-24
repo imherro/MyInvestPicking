@@ -22,7 +22,7 @@ def _score_column(frame: pd.DataFrame, column: str, higher_is_better: bool = Tru
     return _rank_score(frame[column], higher_is_better)
 
 
-def score_stocks(factors: pd.DataFrame) -> pd.DataFrame:
+def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.DataFrame:
     if factors.empty:
         return factors.copy()
 
@@ -58,8 +58,22 @@ def score_stocks(factors: pd.DataFrame) -> pd.DataFrame:
     scored["value_contribution"] = 0.20 * scored["value"]
     scored["risk_contribution"] = 0.20 * scored["risk"]
     scored["risk_adjust_factor"] = (0.75 + 0.25 * scored["risk"]).clip(0.75, 1.0)
-    scored["final_score"] = (scored["score"] * scored["risk_adjust_factor"]).clip(0, 1)
+    scored["regime_multiplier"] = _regime_multiplier(scored, regime_state)
+    scored["final_score"] = (
+        scored["score"] * scored["risk_adjust_factor"] * scored["regime_multiplier"]
+    ).clip(0, 1)
     return scored.sort_values(
         ["final_score", "score", "momentum", "ts_code"],
         ascending=[False, False, False, True],
     ).reset_index(drop=True)
+
+
+def _regime_multiplier(scored: pd.DataFrame, regime_state: str | None) -> pd.Series:
+    state = regime_state or "range"
+    if state == "trend":
+        return (0.95 + 0.10 * scored["momentum"]).clip(0.95, 1.05)
+    if state == "crash":
+        return (0.80 + 0.20 * scored["risk"]).clip(0.80, 1.00)
+    if state == "high_vol":
+        return (0.85 + 0.15 * scored["risk"]).clip(0.85, 1.00)
+    return (0.95 + 0.05 * scored["value"]).clip(0.95, 1.00)

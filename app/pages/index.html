@@ -209,7 +209,9 @@
         .then((payload) => {
           const data = payload.portfolio || payload.data || [];
           const risk = payload.risk || {};
-          summary.textContent = `${payload.trading_date || payload.date} | ${payload.source}${payload.mock_mode ? " mock" : ""} | ${data.length} positions | ${risk.risk_level || "unknown"} risk | ${payload.snapshot_id || "no snapshot"}`;
+          const regime = payload.market_regime || {};
+          const exposure = risk.portfolio_exposure ?? payload.risk_budget?.target_exposure ?? 0;
+          summary.textContent = `${payload.trading_date || payload.date} | ${regime.state || "range"} regime | exposure ${formatValue(exposure)} | ${data.length} positions | ${risk.risk_level || "unknown"} risk | ${payload.snapshot_id || "no snapshot"}`;
 
           if (data.length === 0) {
             picksBody.innerHTML =
