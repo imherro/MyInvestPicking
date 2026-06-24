@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -133,9 +133,16 @@
 
       table {
         width: 100%;
-        min-width: 920px;
         border-collapse: collapse;
         table-layout: fixed;
+      }
+
+      .candidate-table {
+        min-width: 780px;
+      }
+
+      .signal-table {
+        min-width: 960px;
       }
 
       th,
@@ -202,6 +209,26 @@
         color: var(--no-trade);
       }
 
+      .state-buyable {
+        background: #dff5ea;
+        color: var(--buy);
+      }
+
+      .state-watch {
+        background: #fff1d6;
+        color: var(--hold);
+      }
+
+      .state-risk-blocked {
+        background: #fde2e2;
+        color: var(--no-trade);
+      }
+
+      .state-research {
+        background: #e8edf5;
+        color: #475569;
+      }
+
       .confidence {
         display: grid;
         gap: 5px;
@@ -233,6 +260,31 @@
         flex-wrap: wrap;
         gap: 8px;
         margin-bottom: 14px;
+      }
+
+      .gate-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.55fr);
+        gap: 16px;
+        padding: 18px 20px 20px;
+      }
+
+      .gate-headline {
+        margin: 0 0 12px;
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.5;
+      }
+
+      .gate-metrics,
+      .gate-reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .gate-reasons {
+        align-content: flex-start;
       }
 
       .chart {
@@ -294,44 +346,61 @@
         text-overflow: ellipsis;
       }
 
-      td:nth-child(1),
-      th:nth-child(1) {
+      .signal-table td:nth-child(1),
+      .signal-table th:nth-child(1) {
         width: 112px;
       }
 
-      td:nth-child(2),
-      th:nth-child(2) {
+      .signal-table td:nth-child(2),
+      .signal-table th:nth-child(2) {
         width: 150px;
       }
 
-      td:nth-child(3),
-      th:nth-child(3) {
-        width: 92px;
-      }
-
-      td:nth-child(4),
-      th:nth-child(4) {
-        width: 96px;
-      }
-
-      td:nth-child(5),
-      th:nth-child(5) {
+      .signal-table td:nth-child(3),
+      .signal-table th:nth-child(3) {
         width: 104px;
       }
 
-      td:nth-child(6),
-      th:nth-child(6) {
+      .signal-table td:nth-child(4),
+      .signal-table th:nth-child(4) {
+        width: 92px;
+      }
+
+      .signal-table td:nth-child(5),
+      .signal-table th:nth-child(5) {
+        width: 96px;
+      }
+
+      .signal-table td:nth-child(6),
+      .signal-table th:nth-child(6) {
         width: 128px;
       }
 
-      td:nth-child(8),
-      th:nth-child(8) {
+      .signal-table td:nth-child(8),
+      .signal-table th:nth-child(8) {
         width: 120px;
       }
 
-      td:nth-child(7),
-      th:nth-child(7) {
+      .signal-table td:nth-child(7),
+      .signal-table th:nth-child(7) {
         width: auto;
+      }
+
+      .candidate-table td:nth-child(1),
+      .candidate-table th:nth-child(1) {
+        width: 72px;
+      }
+
+      .candidate-table td:nth-child(2),
+      .candidate-table th:nth-child(2) {
+        width: 112px;
+      }
+
+      .candidate-table td:nth-child(4),
+      .candidate-table th:nth-child(4),
+      .candidate-table td:nth-child(5),
+      .candidate-table th:nth-child(5) {
+        width: 96px;
       }
 
       .empty,
@@ -361,6 +430,11 @@
           padding: 14px 14px 16px;
         }
 
+        .gate-grid {
+          grid-template-columns: 1fr;
+          padding: 14px 14px 16px;
+        }
+
         main {
           width: min(100% - 24px, 1040px);
           padding: 24px 0;
@@ -378,52 +452,92 @@
       <header class="page-header">
         <div>
           <h1>MyInvestPicking</h1>
-          <div class="status">Next-day heavy-position stock picking workbench</div>
+          <div class="status">A 股次日选股工作台</div>
         </div>
         <div class="badge">Port 8019</div>
       </header>
 
       <div class="stack">
-        <section class="panel" aria-labelledby="top-picks-title">
+        <section class="panel" aria-labelledby="candidate-title">
           <div class="toolbar">
-            <h2 id="top-picks-title">Today&apos;s Top Picks</h2>
-            <div class="status" id="summary">Loading /api/picks</div>
+            <h2 id="candidate-title">候选榜</h2>
+            <div class="status" id="summary">正在加载 /api/picks</div>
           </div>
           <div class="table-wrap">
-            <table aria-label="Stock picks">
+            <table class="candidate-table" aria-label="候选股票排序">
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Position</th>
+                  <th>排名</th>
+                  <th>代码</th>
+                  <th>名称</th>
                   <th>Final</th>
-                  <th>Signal</th>
-                  <th>Confidence</th>
-                  <th>Reason</th>
-                  <th>Industry</th>
+                  <th>基础分</th>
+                  <th>候选价值</th>
                 </tr>
               </thead>
-              <tbody id="picks">
+              <tbody id="candidates">
                 <tr>
-                  <td colspan="8" class="empty">No data yet. Engine not initialized.</td>
+                  <td colspan="6" class="empty">暂无候选。</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
 
+        <section class="panel" aria-labelledby="signal-title">
+          <div class="toolbar">
+            <h2 id="signal-title">信号榜</h2>
+            <div class="status">风控闸门后的操作状态</div>
+          </div>
+          <div class="table-wrap">
+            <table class="signal-table" aria-label="信号和风控闸门状态">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>状态</th>
+                  <th>仓位</th>
+                  <th>Final</th>
+                  <th>置信度</th>
+                  <th>原因</th>
+                  <th>行业</th>
+                </tr>
+              </thead>
+              <tbody id="picks">
+                <tr>
+                  <td colspan="8" class="empty">暂无信号。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="gate-title">
+          <div class="toolbar">
+            <h2 id="gate-title">拦截面板</h2>
+            <div class="status" id="gate-status">等待闸门摘要</div>
+          </div>
+          <div class="gate-grid">
+            <div>
+              <p class="gate-headline" id="gate-headline">暂无闸门摘要。</p>
+              <div class="gate-metrics" id="gate-metrics"></div>
+            </div>
+            <div class="gate-reasons" id="gate-reasons"></div>
+          </div>
+        </section>
+
         <section class="panel" aria-labelledby="shadow-title">
           <div class="toolbar">
-            <h2 id="shadow-title">Shadow Portfolio</h2>
-            <div class="status" id="shadow-status">Waiting for signals</div>
+            <h2 id="shadow-title">影子组合</h2>
+            <div class="status" id="shadow-status">等待信号</div>
           </div>
           <div class="shadow-grid">
             <div>
               <div class="shadow-summary" id="shadow-summary"></div>
-              <svg class="chart" id="shadow-chart" role="img" aria-label="Shadow portfolio NAV curve"></svg>
+              <svg class="chart" id="shadow-chart" role="img" aria-label="影子组合净值曲线"></svg>
             </div>
             <div class="history-list" id="rebalance-history">
-              <div class="empty">No rebalance history yet.</div>
+              <div class="empty">暂无调仓历史。</div>
             </div>
           </div>
         </section>
@@ -434,7 +548,12 @@
     <script src="https://invest.okbbc.com/footer.js" data-target="[data-myinvest-footer]" defer></script>
     <script>
       const picksBody = document.querySelector("#picks");
+      const candidatesBody = document.querySelector("#candidates");
       const summary = document.querySelector("#summary");
+      const gateStatus = document.querySelector("#gate-status");
+      const gateHeadline = document.querySelector("#gate-headline");
+      const gateMetrics = document.querySelector("#gate-metrics");
+      const gateReasons = document.querySelector("#gate-reasons");
       const shadowStatus = document.querySelector("#shadow-status");
       const shadowSummary = document.querySelector("#shadow-summary");
       const shadowChart = document.querySelector("#shadow-chart");
@@ -459,26 +578,34 @@
           const stability = payload.portfolio_stability?.stability_score ?? 0;
           const sharpe = payload.backtest?.metrics?.sharpe ?? 0;
           const signalCounts = payload.signal_summary?.counts || {};
+          const operationCounts = payload.signal_summary?.operation_counts || {};
           const buyCount = signalCounts.BUY ?? 0;
           const holdCount = signalCounts.HOLD ?? 0;
           const noTradeCount = signalCounts.NO_TRADE ?? 0;
+          const buyableCount = operationCounts.buyable ?? 0;
+          const watchCount = operationCounts.watch ?? 0;
+          const blockedCount = operationCounts.risk_blocked ?? 0;
+          const researchCount = operationCounts.research ?? 0;
           summary.title = [
-            `BJ exposure ${formatValue(bjExposure)} / ${formatValue(bjCap)}`,
-            `factor health ${formatValue(health)}`,
-            `portfolio stability ${formatValue(stability)}`,
-            `backtest sharpe ${formatValue(sharpe)}`,
-            `${signals.length} signals`,
+            `北交所暴露 ${formatValue(bjExposure)} / ${formatValue(bjCap)}`,
+            `因子健康度 ${formatValue(health)}`,
+            `组合稳定度 ${formatValue(stability)}`,
+            `回测 Sharpe ${formatValue(sharpe)}`,
+            `${signals.length} 个信号`,
           ].join("\n");
           summary.innerHTML = [
-            summaryPill("Date", payload.trading_date || payload.date, summary.title),
-            summaryPill("Regime", regime.state || "range", summary.title),
-            summaryPill("Exposure", formatValue(exposure), summary.title),
-            summaryPill("Signals", `B ${buyCount} / H ${holdCount} / N ${noTradeCount}`, summary.title),
+            summaryPill("日期", payload.trading_date || payload.date, summary.title),
+            summaryPill("市场", regime.state || "range", summary.title),
+            summaryPill("暴露", formatValue(exposure), summary.title),
+            summaryPill("信号", `买 ${buyCount} / 持 ${holdCount} / 禁 ${noTradeCount}`, summary.title),
+            summaryPill("状态", `可买 ${buyableCount} / 观察 ${watchCount} / 拦截 ${blockedCount} / 研究 ${researchCount}`, summary.title),
           ].join("");
+          renderCandidates(payload.data || []);
+          renderGateSummary(payload.gate_summary);
 
           if (signals.length === 0) {
             picksBody.innerHTML =
-              '<tr><td colspan="8" class="empty">No data yet. Engine not initialized.</td></tr>';
+              '<tr><td colspan="8" class="empty">暂无信号。</td></tr>';
             loadShadowPortfolio();
             return;
           }
@@ -489,12 +616,12 @@
                 <tr>
                   <td class="compact-cell" title="${escapeAttr(codeDetail(pick))}">${escapeHtml(pick.code)}</td>
                   <td class="compact-cell" title="${escapeAttr(nameDetail(pick))}">${escapeHtml(pick.name || "-")}</td>
+                  <td title="${escapeAttr(decisionDetail(pick))}"><span class="signal ${stateClass(pick.operation_state)}">${displayOperationState(pick.operation_state)}</span></td>
                   <td title="${escapeAttr(weightDetail(pick))}">${formatValue(pick.position_size ?? pick.weight)}</td>
                   <td class="score-cell" title="${escapeAttr(scoreDetail(pick))}">
                     <strong>${formatValue(pick.final_score)}</strong>
-                    <span>base ${formatValue(pick.score)}</span>
+                    <span>基础 ${formatValue(pick.score)}</span>
                   </td>
-                  <td title="${escapeAttr(decisionDetail(pick))}"><span class="signal ${signalClass(pick.action)}">${displayAction(pick.action)}</span></td>
                   <td title="${escapeAttr(confidenceDetail(pick))}">
                     <div class="confidence">
                       <span>${formatValue(pick.confidence)}</span>
@@ -510,10 +637,13 @@
           loadShadowPortfolio();
         })
         .catch(() => {
-          summary.textContent = "API unavailable";
-          shadowStatus.textContent = "API unavailable";
+          summary.textContent = "API 不可用";
+          candidatesBody.innerHTML =
+            '<tr><td colspan="6" class="error">候选榜加载失败。</td></tr>';
+          gateStatus.textContent = "API 不可用";
+          shadowStatus.textContent = "API 不可用";
           picksBody.innerHTML =
-            '<tr><td colspan="8" class="error">Failed to load picks.</td></tr>';
+            '<tr><td colspan="8" class="error">信号加载失败。</td></tr>';
         });
 
       function signalClass(action) {
@@ -522,8 +652,22 @@
         return "signal-no-trade";
       }
 
+      function stateClass(state) {
+        if (state === "buyable") return "state-buyable";
+        if (state === "watch") return "state-watch";
+        if (state === "risk_blocked") return "state-risk-blocked";
+        return "state-research";
+      }
+
       function displayAction(action) {
         return action === "NO_TRADE" ? "NO TRADE" : action || "NO TRADE";
+      }
+
+      function displayOperationState(state) {
+        if (state === "buyable") return "可买";
+        if (state === "watch") return "观察";
+        if (state === "risk_blocked") return "风险拦截";
+        return "研究名单";
       }
 
       function confidenceWidth(value) {
@@ -535,11 +679,16 @@
         const reason = signal.reason || {};
         const blocked = reason.tradability_reasons || [];
         if (blocked.length > 0) return blocked.join(", ");
-        if (reason.backtest?.block_buy) {
-          return `Backtest gate: Sharpe ${formatValue(reason.backtest.sharpe)}`;
+        if ((signal.gate_reasons || []).includes("backtest_block")) {
+          return `回测硬拦截：Sharpe ${formatValue(reason.backtest?.sharpe)}`;
+        }
+        if ((signal.gate_reasons || []).includes("backtest_reduce")) {
+          return signal.position_policy === "probe_only"
+            ? `小仓试探：Sharpe ${formatValue(reason.backtest?.sharpe)}`
+            : `观察：Sharpe ${formatValue(reason.backtest?.sharpe)}`;
         }
         const regime = reason.regime || "-";
-        return `${displayAction(reason.decision || signal.action)} in ${regime}`;
+        return `${displayOperationState(signal.operation_state)}，市场 ${regime}`;
       }
 
       function summaryPill(label, value, detail) {
@@ -550,42 +699,74 @@
         const metrics = signal.metrics || {};
         return [
           `${signal.code} ${signal.name || ""}`,
-          `close ${formatValue(metrics.close)} | pct ${formatValue(metrics.latest_pct_chg)}%`,
-          `amount ${formatValue(metrics.latest_amount)} | turnover ${formatValue(metrics.turnover_rate)}%`,
+          `收盘 ${formatValue(metrics.close)} | 涨跌 ${formatValue(metrics.latest_pct_chg)}%`,
+          `成交额 ${formatValue(metrics.latest_amount)} | 换手 ${formatValue(metrics.turnover_rate)}%`,
         ].join("\n");
       }
 
+      function renderCandidates(candidates) {
+        if (!candidates.length) {
+          candidatesBody.innerHTML =
+            '<tr><td colspan="6" class="empty">暂无候选。</td></tr>';
+          return;
+        }
+        candidatesBody.innerHTML = candidates
+          .map((candidate, index) => {
+            const detail = [
+              scoreDetail(candidate),
+              `收盘 ${formatValue(candidate.metrics?.close)} | 涨跌 ${formatValue(candidate.metrics?.latest_pct_chg)}%`,
+              `成交额 ${formatValue(candidate.metrics?.latest_amount)} | 换手 ${formatValue(candidate.metrics?.turnover_rate)}%`,
+            ].join("\n");
+            return `
+              <tr>
+                <td>${index + 1}</td>
+                <td class="compact-cell" title="${escapeAttr(codeDetail(candidate))}">${escapeHtml(candidate.code)}</td>
+                <td class="compact-cell" title="${escapeAttr(nameDetail(candidate))}">${escapeHtml(candidate.name || "-")}</td>
+                <td class="score-cell" title="${escapeAttr(detail)}"><strong>${formatValue(candidate.final_score)}</strong></td>
+                <td>${formatValue(candidate.score)}</td>
+                <td class="reason" title="${escapeAttr(detail)}">${escapeHtml(candidateValueText(candidate))}</td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function candidateValueText(candidate) {
+        const factors = candidate.factors || {};
+        return `动量 ${formatValue(factors.momentum)} / 估值 ${formatValue(factors.value)} / 风险 ${formatValue(factors.risk)}`;
+      }
+
       function nameDetail(signal) {
-        return `${signal.name || "-"}\n${signal.code}\nIndustry: ${signal.industry || "-"}`;
+        return `${signal.name || "-"}\n${signal.code}\n行业：${signal.industry || "-"}`;
       }
 
       function weightDetail(signal) {
         return [
-          `Position size ${formatValue(signal.position_size ?? signal.weight)}`,
-          `Original portfolio weight ${formatValue(signal.weight)}`,
+          `操作仓位 ${formatValue(signal.position_size ?? signal.weight)}`,
+          `原始组合权重 ${formatValue(signal.weight)}`,
         ].join("\n");
       }
 
       function scoreDetail(signal) {
         const factors = signal.factors || {};
         return [
-          `Final ${formatValue(signal.final_score)} | base ${formatValue(signal.score)}`,
-          `Momentum ${formatValue(factors.momentum)} | Quality ${formatValue(factors.quality)}`,
-          `Value ${formatValue(factors.value)} | Risk ${formatValue(factors.risk)}`,
-          `RiskAdj ${formatValue(signal.risk_adjust_factor)} | Regime ${formatValue(signal.regime_multiplier)}`,
-          `Health ${formatValue(signal.factor_health_score)} | Exchange ${formatValue(signal.exchange_risk_multiplier)} | Liquidity ${formatValue(signal.liquidity_risk_multiplier)}`,
+          `最终分 ${formatValue(signal.final_score)} | 基础分 ${formatValue(signal.score)}`,
+          `动量 ${formatValue(factors.momentum)} | 质量 ${formatValue(factors.quality)}`,
+          `估值 ${formatValue(factors.value)} | 风险 ${formatValue(factors.risk)}`,
+          `风险调整 ${formatValue(signal.risk_adjust_factor)} | 市场状态 ${formatValue(signal.regime_multiplier)}`,
+          `健康度 ${formatValue(signal.factor_health_score)} | 交易所 ${formatValue(signal.exchange_risk_multiplier)} | 流动性 ${formatValue(signal.liquidity_risk_multiplier)}`,
         ].join("\n");
       }
 
       function confidenceDetail(signal) {
         const components = signal.signal_confidence?.components || signal.reason?.confidence_components || {};
         return [
-          `Confidence ${formatValue(signal.confidence)}`,
-          `Factor consistency ${formatValue(components.factor_consistency)}`,
-          `Regime alignment ${formatValue(components.regime_alignment)}`,
-          `Volume confirmation ${formatValue(components.volume_confirmation)}`,
-          `Timeframe alignment ${formatValue(components.timeframe_alignment)}`,
-          `Factor health ${formatValue(components.factor_health)}`,
+          `置信度 ${formatValue(signal.confidence)}`,
+          `因子一致性 ${formatValue(components.factor_consistency)}`,
+          `市场匹配 ${formatValue(components.regime_alignment)}`,
+          `成交确认 ${formatValue(components.volume_confirmation)}`,
+          `周期一致性 ${formatValue(components.timeframe_alignment)}`,
+          `因子健康度 ${formatValue(components.factor_health)}`,
         ].join("\n");
       }
 
@@ -594,15 +775,18 @@
         const backtest = reason.backtest || {};
         const tradability = signal.tradability || {};
         const tradabilityText = tradability.tradable === false
-          ? `Tradability blocked: ${(tradability.reasons || []).join(", ")}`
-          : "Tradability ok";
+          ? `个股不可交易：${(tradability.reasons || []).join(", ")}`
+          : "个股可交易";
         return [
-          `Action ${displayAction(signal.action)}`,
+          `操作状态 ${displayOperationState(signal.operation_state)}`,
+          `交易信号 ${displayAction(signal.action)}`,
           reasonText(signal),
           tradabilityText,
-          `Regime ${reason.regime || "-"}`,
-          `Backtest sharpe ${formatValue(backtest.sharpe)} | MDD ${formatValue(backtest.max_drawdown)}`,
-          `Backtest block buy ${backtest.block_buy ? "yes" : "no"}`,
+          `仓位策略 ${signal.position_policy || "-"}`,
+          `闸门原因 ${(signal.gate_reasons || []).join(", ") || "-"}`,
+          `市场状态 ${reason.regime || "-"}`,
+          `回测 Sharpe ${formatValue(backtest.sharpe)} | 最大回撤 ${formatValue(backtest.max_drawdown)}`,
+          `回测硬拦截 ${backtest.block_buy ? "是" : "否"} | 降仓 ${backtest.reduce_buy ? "是" : "否"}`,
         ].join("\n");
       }
 
@@ -610,9 +794,67 @@
         return `${signal.industry || "-"}\n${signal.code} ${signal.name || ""}`;
       }
 
+      function renderGateSummary(gate) {
+        if (!gate) {
+          gateStatus.textContent = "暂无闸门摘要";
+          gateHeadline.textContent = "暂无闸门摘要。";
+          gateMetrics.innerHTML = "";
+          gateReasons.innerHTML = "";
+          return;
+        }
+        const backtest = gate.backtest_gate || {};
+        const market = gate.market_gate || {};
+        const operationCounts = gate.operation_counts || {};
+        const reasonCounts = gate.reason_counts || {};
+        const detail = [
+          `回测状态 ${backtest.state || "-"}`,
+          `Sharpe ${formatValue(backtest.sharpe)}`,
+          `最大回撤 ${percentValue(backtest.max_drawdown)}`,
+          `仓位缩放 ${formatValue(backtest.position_scale)}`,
+          `市场 ${market.state || "-"} (${formatValue(market.confidence)})`,
+        ].join("\n");
+        gateStatus.textContent = backtest.state === "reduced"
+          ? "回测降仓"
+          : backtest.state === "blocked"
+            ? "回测硬拦截"
+            : "闸门摘要";
+        gateStatus.title = detail;
+        gateHeadline.textContent = gate.headline || "暂无激活闸门。";
+        gateHeadline.title = detail;
+        gateMetrics.innerHTML = [
+          summaryPill("Sharpe", formatValue(backtest.sharpe), detail),
+          summaryPill("MDD", percentValue(backtest.max_drawdown), detail),
+          summaryPill("缩放", formatValue(backtest.position_scale), detail),
+          summaryPill("市场", market.state || "-", detail),
+          summaryPill("可买", operationCounts.buyable || 0, detail),
+          summaryPill("观察", operationCounts.watch || 0, detail),
+          summaryPill("拦截", operationCounts.risk_blocked || 0, detail),
+          summaryPill("研究", operationCounts.research || 0, detail),
+        ].join("");
+        gateReasons.innerHTML = Object.entries(reasonCounts)
+          .sort((left, right) => Number(right[1]) - Number(left[1]))
+          .map(([reason, count]) => summaryPill(gateReasonLabel(reason), count, detail))
+          .join("");
+      }
+
+      function gateReasonLabel(reason) {
+        const labels = {
+          backtest_block: "回测硬拦截",
+          backtest_reduce: "回测降仓",
+          backtest_caution: "回测谨慎",
+          tradability_block: "个股不可交易",
+          market_crash: "市场崩盘",
+          market_high_vol: "高波动",
+          correlation_cluster: "相关性拥挤",
+          low_candidate_score: "候选分低",
+          low_confidence: "置信度低",
+        };
+        return labels[reason] || reason;
+      }
+
       function renderShadowPortfolio(shadow) {
         if (!shadow || shadow.status !== "ok") {
-          const reason = shadow?.reason || "No shadow portfolio data";
+          const reason = shadow?.reason || "暂无影子组合数据";
           shadowStatus.textContent = reason;
           shadowSummary.innerHTML = "";
           shadowChart.innerHTML = "";
@@ -623,37 +865,37 @@
         const info = shadow.summary || {};
         const metrics = shadow.metrics || {};
         const detail = [
-          `Mode: ${shadow.assumptions?.rebalance || "daily_new_picks"}`,
-          `Position source: ${shadow.assumptions?.position_source || "BUY position_size"}`,
+          `模式：${shadow.assumptions?.rebalance || "daily_new_picks"}`,
+          `仓位来源：${shadow.assumptions?.position_source || "BUY position_size"}`,
           `Sharpe ${formatValue(metrics.sharpe)} | MDD ${formatValue(metrics.max_drawdown)}`,
-          `Turnover ${formatValue(metrics.turnover)}`,
+          `换手 ${formatValue(metrics.turnover)}`,
         ].join("\n");
-        shadowStatus.textContent = `${info.start_date} to ${info.end_date}`;
+        shadowStatus.textContent = `${info.start_date} 至 ${info.end_date}`;
         shadowStatus.title = detail;
         shadowSummary.innerHTML = [
-          summaryPill("NAV", formatValue(info.end_nav), detail),
-          summaryPill("Return", percentValue(info.total_return), detail),
+          summaryPill("净值", formatValue(info.end_nav), detail),
+          summaryPill("收益", percentValue(info.total_return), detail),
           summaryPill("MDD", percentValue(info.max_drawdown), detail),
-          summaryPill("Exposure", formatValue(info.latest_exposure), detail),
-          summaryPill("Rebals", info.rebalance_count, detail),
+          summaryPill("暴露", formatValue(info.latest_exposure), detail),
+          summaryPill("调仓", info.rebalance_count, detail),
         ].join("");
         renderNavChart(shadow.equity_curve || []);
         renderRebalanceHistory(shadow.rebalance_history || []);
       }
 
       function loadShadowPortfolio() {
-        shadowStatus.textContent = "Building shadow portfolio";
+        shadowStatus.textContent = "正在生成影子组合";
         fetch("/api/shadow-portfolio?shadow_days=5")
           .then((response) => response.json())
           .then((payload) => {
             renderShadowPortfolio(payload.shadow_portfolio);
           })
           .catch(() => {
-            shadowStatus.textContent = "Shadow portfolio unavailable";
+            shadowStatus.textContent = "影子组合不可用";
             shadowSummary.innerHTML = "";
             shadowChart.innerHTML = "";
             rebalanceHistory.innerHTML =
-              '<div class="error">Failed to load shadow portfolio.</div>';
+              '<div class="error">影子组合加载失败。</div>';
           });
       }
 
@@ -690,7 +932,7 @@
 
       function renderRebalanceHistory(history) {
         if (!history.length) {
-          rebalanceHistory.innerHTML = '<div class="empty">No rebalance history yet.</div>';
+          rebalanceHistory.innerHTML = '<div class="empty">暂无调仓历史。</div>';
           return;
         }
         rebalanceHistory.innerHTML = history
@@ -700,20 +942,20 @@
             const counts = item.signal_counts || {};
             const changes = item.changes || [];
             const title = [
-              `Rebalance ${item.rebalance_date}, applied ${item.applied_date}`,
-              `NAV ${formatValue(item.nav)} | exposure ${formatValue(item.target_exposure)}`,
-              `Turnover ${formatValue(item.turnover)} | cost ${formatValue(item.cost)}`,
-              `Portfolio return ${formatValue(item.portfolio_return)}`,
-              `Signals B ${counts.BUY || 0} / H ${counts.HOLD || 0} / N ${counts.NO_TRADE || 0}`,
+              `调仓日 ${item.rebalance_date}，生效日 ${item.applied_date}`,
+              `净值 ${formatValue(item.nav)} | 暴露 ${formatValue(item.target_exposure)}`,
+              `换手 ${formatValue(item.turnover)} | 成本 ${formatValue(item.cost)}`,
+              `组合收益 ${formatValue(item.portfolio_return)}`,
+              `信号 买 ${counts.BUY || 0} / 持 ${counts.HOLD || 0} / 禁 ${counts.NO_TRADE || 0}`,
               changes.length
                 ? changes.map((change) => `${change.code} ${formatValue(change.previous_weight)} -> ${formatValue(change.target_weight)}`).join("\n")
-                : "No position changes",
+                : "无仓位变化",
             ].join("\n");
             return `
               <div class="history-item" title="${escapeAttr(title)}">
                 <strong>${escapeHtml(item.applied_date)}</strong>
-                <span>NAV ${formatValue(item.nav)} · Exp ${formatValue(item.target_exposure)}</span>
-                <span>${changes.length} changes</span>
+                <span>净值 ${formatValue(item.nav)} · 暴露 ${formatValue(item.target_exposure)}</span>
+                <span>${changes.length} 项变动</span>
               </div>
             `;
           })

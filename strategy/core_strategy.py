@@ -9,7 +9,11 @@ from config.settings import DEFAULT_TOP_N
 from engine.data_loader import TushareDataLoader, format_api_date
 from engine.factor_decay import add_factor_health, summarize_factor_health
 from engine.factor_engine import compute_factors
-from engine.final_decision_engine import build_final_signals, summarize_signals
+from engine.final_decision_engine import (
+    build_final_signals,
+    summarize_gate_status,
+    summarize_signals,
+)
 from engine.liquidity import filter_liquidity
 from engine.market_features import compute_market_features
 from engine.market_regime import detect_market_regime
@@ -140,6 +144,11 @@ def build_stock_picks(
         backtest_metrics=backtest["metrics"],
     )
     signal_summary = summarize_signals(signals)
+    gate_summary = summarize_gate_status(
+        signals,
+        backtest_metrics=backtest["metrics"],
+        market_regime=market_regime,
+    )
     shadow_portfolio = build_shadow_portfolio(
         market_data,
         top_n=top_n,
@@ -157,6 +166,7 @@ def build_stock_picks(
             "portfolio": portfolio_result["positions"],
             "signals": signals,
             "signal_summary": signal_summary,
+            "gate_summary": gate_summary,
             "risk": portfolio_result["risk"],
             "market_regime": market_regime,
             "risk_budget": risk_budget,
@@ -194,6 +204,7 @@ def build_stock_picks(
         "portfolio_stability": portfolio_stability,
         "signals": signals,
         "signal_summary": signal_summary,
+        "gate_summary": gate_summary,
         "shadow_portfolio": shadow_portfolio,
         "backtest": backtest,
         "universe_size": int(len(tradable_universe)),

@@ -14,6 +14,7 @@ warnings.filterwarnings(
 from fastapi.testclient import TestClient
 
 from app.main import app
+from engine.signal_gate import build_signal_decision
 from engine.tradability_engine import assess_tradability
 from risk.portfolio_builder import build_portfolio
 
@@ -30,8 +31,11 @@ def test_index_page() -> None:
     assert 'src="https://invest.okbbc.com/header.js"' in response.text
     assert 'src="https://invest.okbbc.com/footer.js"' in response.text
     assert '<header class="page-header">' in response.text
-    assert "Shadow Portfolio" in response.text
-    assert "<th>Position</th>" in response.text
+    assert "候选榜" in response.text
+    assert "信号榜" in response.text
+    assert "拦截面板" in response.text
+    assert "影子组合" in response.text
+    assert "<th>仓位</th>" in response.text
 
 
 def test_picks_endpoint_returns_structured_results() -> None:
@@ -67,6 +71,7 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert "concentration_risk" in payload
     assert "portfolio_stability" in payload
     assert "backtest" in payload
+    assert "gate_summary" in payload
     assert "shadow_portfolio" in payload
     assert 0 <= payload["factor_health"]["factor_health_score"] <= 1.05
     assert 0 <= payload["portfolio_stability"]["stability_score"] <= 1
@@ -77,6 +82,13 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert payload["backtest"]["drawdown_curve"]
     assert payload["shadow_portfolio"]["status"] == "ok"
     assert payload["shadow_portfolio"]["assumptions"]["ratio_only"] is True
+    assert payload["signal_summary"]["operation_counts"]
+    assert payload["gate_summary"]["backtest_gate"]["state"] in {
+        "normal",
+        "caution",
+        "reduced",
+        "blocked",
+    }
     assert payload["shadow_portfolio"]["equity_curve"]
     assert payload["shadow_portfolio"]["rebalance_history"]
     assert {
@@ -112,11 +124,15 @@ def test_picks_endpoint_returns_structured_results() -> None:
         "action",
         "confidence",
         "position_size",
+        "operation_state",
+        "position_policy",
+        "gate_reasons",
         "tradability",
         "signal_confidence",
         "reason",
     } <= set(first_signal)
     assert first_signal["action"] in {"BUY", "HOLD", "NO_TRADE"}
+    assert first_signal["operation_state"] in {"buyable", "watch", "risk_blocked", "research"}
     assert 0 <= first_signal["confidence"] <= 1
 
 
@@ -137,7 +153,37 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["factor_health"] == second["factor_health"]
     assert first["portfolio_stability"] == second["portfolio_stability"]
     assert first["backtest"] == second["backtest"]
+    assert first["gate_summary"] == second["gate_summary"]
     assert first["shadow_portfolio"] == second["shadow_portfolio"]
+
+
+def test_backtest_reduce_allows_probe_sized_high_conviction_buy() -> None:
+    decision = build_signal_decision(
+        position={
+            "code": "600001.SH",
+            "name": "Test",
+            "final_score": 0.7,
+            "weight": 0.1,
+        },
+        tradability={"tradable": True, "reasons": []},
+        confidence={"confidence": 0.86, "components": {}},
+        market_regime={"state": "range", "confidence": 0.6},
+        correlation_context={"cluster_block": False},
+        backtest_context={
+            "block_buy": False,
+            "reduce_buy": True,
+            "caution": True,
+            "state": "reduced",
+            "sharpe": -2.0,
+            "max_drawdown": -0.0993,
+        },
+    )
+
+    assert decision["action"] == "BUY"
+    assert decision["operation_state"] == "buyable"
+    assert decision["position_policy"] == "probe_only"
+    assert decision["position_size"] == 0.025
+    assert "backtest_reduce" in decision["gate_reasons"]
 
 
 def test_shadow_portfolio_endpoint_returns_history() -> None:
