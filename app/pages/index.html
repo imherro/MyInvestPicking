@@ -33,7 +33,7 @@
       }
 
       main {
-        width: min(1280px, calc(100% - 32px));
+        width: min(1360px, calc(100% - 32px));
         margin: 0 auto;
         padding: 40px 0;
       }
@@ -67,7 +67,7 @@
 
       .toolbar {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 16px;
         padding: 16px 20px;
@@ -79,6 +79,35 @@
         font-size: 18px;
         font-weight: 650;
         letter-spacing: 0;
+      }
+
+      #summary {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        max-width: 760px;
+      }
+
+      .summary-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 26px;
+        padding: 0 9px;
+        border: 1px solid #dbe4e1;
+        border-radius: 6px;
+        background: #f9fbfa;
+        color: var(--text);
+        cursor: help;
+        font-size: 12px;
+        font-weight: 650;
+        white-space: nowrap;
+      }
+
+      .summary-pill span {
+        color: var(--muted);
+        font-weight: 600;
       }
 
       .badge {
@@ -99,6 +128,7 @@
 
       table {
         width: 100%;
+        min-width: 920px;
         border-collapse: collapse;
         table-layout: fixed;
       }
@@ -122,24 +152,24 @@
         font-size: 14px;
       }
 
-      .factor-list {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(84px, 1fr));
-        gap: 6px 10px;
-        min-width: 180px;
+      .compact-cell {
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      .factor-chip {
-        display: inline-flex;
-        justify-content: space-between;
-        gap: 8px;
+      .score-cell {
+        cursor: help;
+      }
+
+      .score-cell strong {
+        display: block;
+        font-weight: 700;
+      }
+
+      .score-cell span,
+      .confidence span:first-child {
         color: var(--muted);
         font-size: 12px;
-      }
-
-      .factor-chip strong {
-        color: var(--text);
-        font-weight: 650;
       }
 
       .signal {
@@ -187,6 +217,7 @@
       }
 
       .reason {
+        cursor: help;
         color: var(--muted);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -194,37 +225,42 @@
 
       td:nth-child(1),
       th:nth-child(1) {
-        width: 120px;
+        width: 112px;
+      }
+
+      td:nth-child(2),
+      th:nth-child(2) {
+        width: 150px;
       }
 
       td:nth-child(3),
       th:nth-child(3) {
+        width: 92px;
+      }
+
+      td:nth-child(4),
+      th:nth-child(4) {
         width: 96px;
+      }
+
+      td:nth-child(5),
+      th:nth-child(5) {
+        width: 104px;
       }
 
       td:nth-child(6),
       th:nth-child(6) {
-        width: 220px;
-      }
-
-      td:nth-child(7),
-      th:nth-child(7) {
-        width: 210px;
+        width: 128px;
       }
 
       td:nth-child(8),
       th:nth-child(8) {
-        width: 104px;
+        width: 120px;
       }
 
-      td:nth-child(9),
-      th:nth-child(9) {
-        width: 132px;
-      }
-
-      td:nth-child(10),
-      th:nth-child(10) {
-        width: 260px;
+      td:nth-child(7),
+      th:nth-child(7) {
+        width: auto;
       }
 
       .empty,
@@ -243,6 +279,10 @@
         .toolbar {
           align-items: flex-start;
           flex-direction: column;
+        }
+
+        #summary {
+          justify-content: flex-start;
         }
 
         main {
@@ -280,9 +320,6 @@
                 <th>Name</th>
                 <th>Weight</th>
                 <th>Final</th>
-                <th>Score</th>
-                <th>Factors</th>
-                <th>Adjust</th>
                 <th>Signal</th>
                 <th>Confidence</th>
                 <th>Reason</th>
@@ -291,7 +328,7 @@
             </thead>
             <tbody id="picks">
               <tr>
-                <td colspan="11" class="empty">No data yet. Engine not initialized.</td>
+                <td colspan="8" class="empty">No data yet. Engine not initialized.</td>
               </tr>
             </tbody>
           </table>
@@ -327,11 +364,23 @@
           const buyCount = signalCounts.BUY ?? 0;
           const holdCount = signalCounts.HOLD ?? 0;
           const noTradeCount = signalCounts.NO_TRADE ?? 0;
-          summary.textContent = `${payload.trading_date || payload.date} | ${regime.state || "range"} regime | exposure ${formatValue(exposure)} | BJ ${formatValue(bjExposure)}/${formatValue(bjCap)} | BUY ${buyCount} HOLD ${holdCount} NO_TRADE ${noTradeCount} | health ${formatValue(health)} | stability ${formatValue(stability)} | sharpe ${formatValue(sharpe)} | ${signals.length} signals`;
+          summary.title = [
+            `BJ exposure ${formatValue(bjExposure)} / ${formatValue(bjCap)}`,
+            `factor health ${formatValue(health)}`,
+            `portfolio stability ${formatValue(stability)}`,
+            `backtest sharpe ${formatValue(sharpe)}`,
+            `${signals.length} signals`,
+          ].join("\n");
+          summary.innerHTML = [
+            summaryPill("Date", payload.trading_date || payload.date, summary.title),
+            summaryPill("Regime", regime.state || "range", summary.title),
+            summaryPill("Exposure", formatValue(exposure), summary.title),
+            summaryPill("Signals", `B ${buyCount} / H ${holdCount} / N ${noTradeCount}`, summary.title),
+          ].join("");
 
           if (signals.length === 0) {
             picksBody.innerHTML =
-              '<tr><td colspan="11" class="empty">No data yet. Engine not initialized.</td></tr>';
+              '<tr><td colspan="8" class="empty">No data yet. Engine not initialized.</td></tr>';
             return;
           }
 
@@ -339,37 +388,22 @@
             .map(
               (pick) => `
                 <tr>
-                  <td>${pick.code}</td>
-                  <td>${pick.name || "-"}</td>
-                  <td>${formatValue(pick.position_size ?? pick.weight)}</td>
-                  <td>${formatValue(pick.final_score)}</td>
-                  <td>${formatValue(pick.score)}</td>
-                  <td>
-                    <div class="factor-list">
-                      <span class="factor-chip">Mom <strong>${formatValue(pick.factors?.momentum)}</strong></span>
-                      <span class="factor-chip">Qual <strong>${formatValue(pick.factors?.quality)}</strong></span>
-                      <span class="factor-chip">Val <strong>${formatValue(pick.factors?.value)}</strong></span>
-                      <span class="factor-chip">Risk <strong>${formatValue(pick.factors?.risk)}</strong></span>
-                    </div>
+                  <td class="compact-cell" title="${escapeAttr(codeDetail(pick))}">${escapeHtml(pick.code)}</td>
+                  <td class="compact-cell" title="${escapeAttr(nameDetail(pick))}">${escapeHtml(pick.name || "-")}</td>
+                  <td title="${escapeAttr(weightDetail(pick))}">${formatValue(pick.position_size ?? pick.weight)}</td>
+                  <td class="score-cell" title="${escapeAttr(scoreDetail(pick))}">
+                    <strong>${formatValue(pick.final_score)}</strong>
+                    <span>base ${formatValue(pick.score)}</span>
                   </td>
-                  <td>
-                    <div class="factor-list">
-                      <span class="factor-chip">RiskAdj <strong>${formatValue(pick.risk_adjust_factor)}</strong></span>
-                      <span class="factor-chip">Regime <strong>${formatValue(pick.regime_multiplier)}</strong></span>
-                      <span class="factor-chip">Health <strong>${formatValue(pick.factor_health_score)}</strong></span>
-                      <span class="factor-chip">Exch <strong>${formatValue(pick.exchange_risk_multiplier)}</strong></span>
-                      <span class="factor-chip">Liq <strong>${formatValue(pick.liquidity_risk_multiplier)}</strong></span>
-                    </div>
-                  </td>
-                  <td><span class="signal ${signalClass(pick.action)}">${displayAction(pick.action)}</span></td>
-                  <td>
+                  <td title="${escapeAttr(decisionDetail(pick))}"><span class="signal ${signalClass(pick.action)}">${displayAction(pick.action)}</span></td>
+                  <td title="${escapeAttr(confidenceDetail(pick))}">
                     <div class="confidence">
                       <span>${formatValue(pick.confidence)}</span>
                       <span class="confidence-track"><span class="confidence-fill" style="width: ${confidenceWidth(pick.confidence)}%"></span></span>
                     </div>
                   </td>
-                  <td class="reason" title="${reasonText(pick)}">${reasonText(pick)}</td>
-                  <td>${pick.industry || "-"}</td>
+                  <td class="reason" title="${escapeAttr(decisionDetail(pick))}">${escapeHtml(reasonText(pick))}</td>
+                  <td class="compact-cell" title="${escapeAttr(industryDetail(pick))}">${escapeHtml(pick.industry || "-")}</td>
                 </tr>
               `,
             )
@@ -400,8 +434,93 @@
         const reason = signal.reason || {};
         const blocked = reason.tradability_reasons || [];
         if (blocked.length > 0) return blocked.join(", ");
+        if (reason.backtest?.block_buy) {
+          return `Backtest gate: Sharpe ${formatValue(reason.backtest.sharpe)}`;
+        }
         const regime = reason.regime || "-";
-        return `${reason.decision || signal.action || "NO_TRADE"} in ${regime} regime`;
+        return `${displayAction(reason.decision || signal.action)} in ${regime}`;
+      }
+
+      function summaryPill(label, value, detail) {
+        return `<span class="summary-pill" title="${escapeAttr(detail)}"><span>${escapeHtml(label)}</span>${escapeHtml(value ?? "-")}</span>`;
+      }
+
+      function codeDetail(signal) {
+        const metrics = signal.metrics || {};
+        return [
+          `${signal.code} ${signal.name || ""}`,
+          `close ${formatValue(metrics.close)} | pct ${formatValue(metrics.latest_pct_chg)}%`,
+          `amount ${formatValue(metrics.latest_amount)} | turnover ${formatValue(metrics.turnover_rate)}%`,
+        ].join("\n");
+      }
+
+      function nameDetail(signal) {
+        return `${signal.name || "-"}\n${signal.code}\nIndustry: ${signal.industry || "-"}`;
+      }
+
+      function weightDetail(signal) {
+        return [
+          `Position size ${formatValue(signal.position_size ?? signal.weight)}`,
+          `Original portfolio weight ${formatValue(signal.weight)}`,
+        ].join("\n");
+      }
+
+      function scoreDetail(signal) {
+        const factors = signal.factors || {};
+        return [
+          `Final ${formatValue(signal.final_score)} | base ${formatValue(signal.score)}`,
+          `Momentum ${formatValue(factors.momentum)} | Quality ${formatValue(factors.quality)}`,
+          `Value ${formatValue(factors.value)} | Risk ${formatValue(factors.risk)}`,
+          `RiskAdj ${formatValue(signal.risk_adjust_factor)} | Regime ${formatValue(signal.regime_multiplier)}`,
+          `Health ${formatValue(signal.factor_health_score)} | Exchange ${formatValue(signal.exchange_risk_multiplier)} | Liquidity ${formatValue(signal.liquidity_risk_multiplier)}`,
+        ].join("\n");
+      }
+
+      function confidenceDetail(signal) {
+        const components = signal.signal_confidence?.components || signal.reason?.confidence_components || {};
+        return [
+          `Confidence ${formatValue(signal.confidence)}`,
+          `Factor consistency ${formatValue(components.factor_consistency)}`,
+          `Regime alignment ${formatValue(components.regime_alignment)}`,
+          `Volume confirmation ${formatValue(components.volume_confirmation)}`,
+          `Timeframe alignment ${formatValue(components.timeframe_alignment)}`,
+          `Factor health ${formatValue(components.factor_health)}`,
+        ].join("\n");
+      }
+
+      function decisionDetail(signal) {
+        const reason = signal.reason || {};
+        const backtest = reason.backtest || {};
+        const tradability = signal.tradability || {};
+        const tradabilityText = tradability.tradable === false
+          ? `Tradability blocked: ${(tradability.reasons || []).join(", ")}`
+          : "Tradability ok";
+        return [
+          `Action ${displayAction(signal.action)}`,
+          reasonText(signal),
+          tradabilityText,
+          `Regime ${reason.regime || "-"}`,
+          `Backtest sharpe ${formatValue(backtest.sharpe)} | MDD ${formatValue(backtest.max_drawdown)}`,
+          `Backtest block buy ${backtest.block_buy ? "yes" : "no"}`,
+        ].join("\n");
+      }
+
+      function industryDetail(signal) {
+        return `${signal.industry || "-"}\n${signal.code} ${signal.name || ""}`;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function escapeAttr(value) {
+        return escapeHtml(value)
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;")
+          .replace(/\n/g, "&#10;");
       }
     </script>
   </body>
