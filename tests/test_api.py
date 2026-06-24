@@ -38,13 +38,23 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert payload["snapshot_id"]
     assert payload["universe_hash"]
     assert len(payload["data"]) == 5
+    assert len(payload["portfolio"]) == 5
+    assert payload["risk"]["max_position_per_stock"] == 0.1
+    assert payload["risk"]["max_industry_weight"] == 0.3
 
     first = payload["data"][0]
-    assert {"code", "score", "factors", "metrics", "contribution", "reason"} <= set(first)
+    assert {"code", "score", "final_score", "factors", "metrics", "contribution", "reason"} <= set(
+        first
+    )
     assert {"momentum", "quality", "value", "risk"} <= set(first["factors"])
     assert {"revenue_growth_yoy", "net_profit_growth_yoy", "ocf_to_profit"} <= set(
         first["metrics"]
     )
+
+    first_position = payload["portfolio"][0]
+    assert {"code", "weight", "score", "final_score"} <= set(first_position)
+    assert first_position["weight"] <= 0.1
+    assert max(payload["risk"]["industry_exposure"].values()) <= 0.3
 
 
 def test_picks_endpoint_is_deterministic_for_same_input() -> None:
@@ -54,3 +64,5 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["snapshot_id"] == second["snapshot_id"]
     assert first["data_version"] == second["data_version"]
     assert first["data"] == second["data"]
+    assert first["portfolio"] == second["portfolio"]
+    assert first["risk"] == second["risk"]

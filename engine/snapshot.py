@@ -29,7 +29,7 @@ def create_snapshot(
     universe_hash: str,
     source: str,
     mock_mode: bool,
-    results: list[dict[str, Any]],
+    results: Any,
 ) -> dict[str, Any]:
     snapshot_body = {
         "trading_date": trading_date,

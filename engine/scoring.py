@@ -57,7 +57,9 @@ def score_stocks(factors: pd.DataFrame) -> pd.DataFrame:
     scored["quality_contribution"] = 0.25 * scored["quality"]
     scored["value_contribution"] = 0.20 * scored["value"]
     scored["risk_contribution"] = 0.20 * scored["risk"]
+    scored["risk_adjust_factor"] = (0.75 + 0.25 * scored["risk"]).clip(0.75, 1.0)
+    scored["final_score"] = (scored["score"] * scored["risk_adjust_factor"]).clip(0, 1)
     return scored.sort_values(
-        ["score", "momentum", "ts_code"],
-        ascending=[False, False, True],
+        ["final_score", "score", "momentum", "ts_code"],
+        ascending=[False, False, False, True],
     ).reset_index(drop=True)

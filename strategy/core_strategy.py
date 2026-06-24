@@ -10,6 +10,7 @@ from engine.factor_engine import compute_factors
 from engine.scoring import score_stocks
 from engine.snapshot import build_universe_hash, create_snapshot
 from engine.universe import filter_universe
+from risk.risk_engine import build_risk_managed_portfolio
 
 
 def _round_float(value: Any, digits: int = 4) -> float | None:
@@ -30,6 +31,8 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
         "name": row.get("name"),
         "industry": row.get("industry"),
         "score": _round_float(row.get("score")),
+        "final_score": _round_float(row.get("final_score")),
+        "risk_adjust_factor": _round_float(row.get("risk_adjust_factor")),
         "factors": factors,
         "contribution": {
             "momentum": _round_float(row.get("momentum_contribution")),
@@ -84,6 +87,7 @@ def build_stock_picks(
     scored = score_stocks(factors)
     selected = scored.head(max(top_n, 0))
     results = [_to_pick(row) for _, row in selected.iterrows()]
+    portfolio_result = build_risk_managed_portfolio(results)
     universe_hash = build_universe_hash(tradable_universe["ts_code"].astype(str))
     snapshot = create_snapshot(
         trading_date=format_api_date(market_data.trade_date),
@@ -91,7 +95,11 @@ def build_stock_picks(
         universe_hash=universe_hash,
         source=market_data.source,
         mock_mode=market_data.mock_mode,
-        results=results,
+        results={
+            "picks": results,
+            "portfolio": portfolio_result["positions"],
+            "risk": portfolio_result["risk"],
+        },
     )
 
     return {
@@ -103,5 +111,7 @@ def build_stock_picks(
         "data_version": market_data.data_version,
         **snapshot,
         "universe_size": int(len(tradable_universe)),
+        "portfolio": portfolio_result["positions"],
+        "risk": portfolio_result["risk"],
         "data": results,
     }

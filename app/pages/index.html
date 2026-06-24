@@ -179,10 +179,10 @@
               <tr>
                 <th>Code</th>
                 <th>Name</th>
+                <th>Weight</th>
+                <th>Final</th>
                 <th>Score</th>
-                <th>Momentum</th>
-                <th>Quality</th>
-                <th>Value</th>
+                <th>Industry</th>
                 <th>Risk</th>
               </tr>
             </thead>
@@ -207,8 +207,9 @@
       fetch("/api/picks")
         .then((response) => response.json())
         .then((payload) => {
-          const data = payload.data || [];
-          summary.textContent = `${payload.trading_date || payload.date} | ${payload.source}${payload.mock_mode ? " mock" : ""} | ${data.length} picks | ${payload.snapshot_id || "no snapshot"}`;
+          const data = payload.portfolio || payload.data || [];
+          const risk = payload.risk || {};
+          summary.textContent = `${payload.trading_date || payload.date} | ${payload.source}${payload.mock_mode ? " mock" : ""} | ${data.length} positions | ${risk.risk_level || "unknown"} risk | ${payload.snapshot_id || "no snapshot"}`;
 
           if (data.length === 0) {
             picksBody.innerHTML =
@@ -222,10 +223,10 @@
                 <tr>
                   <td>${pick.code}</td>
                   <td>${pick.name || "-"}</td>
+                  <td>${formatValue(pick.weight)}</td>
+                  <td>${formatValue(pick.final_score)}</td>
                   <td>${formatValue(pick.score)}</td>
-                  <td>${formatValue(pick.factors?.momentum)}</td>
-                  <td>${formatValue(pick.factors?.quality)}</td>
-                  <td>${formatValue(pick.factors?.value)}</td>
+                  <td>${pick.industry || "-"}</td>
                   <td>${formatValue(pick.factors?.risk)}</td>
                 </tr>
               `,

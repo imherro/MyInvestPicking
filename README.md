@@ -24,6 +24,8 @@ http://localhost:8019
 - Trading-day normalization and local data caching
 - Reproducible snapshot metadata for each stock-picking run
 - Basic universe filtering, factor calculation, and scoring
+- Score-weighted portfolio construction with position and industry caps
+- Drawdown guard and portfolio risk metrics
 - Project structure for future strategy and risk modules
 
 ## Environment
@@ -47,7 +49,8 @@ GET /api/picks?date=2026-06-24&top_n=20
 Response fields include `trading_date`, `data_version`, `factor_version`,
 `universe_hash`, `snapshot_id`, `source`, `mock_mode`, `universe_size`, and
 structured stock picks with `score`, normalized factor scores, weighted
-contributions, raw metrics, and a short reason list.
+contributions, raw metrics, and a short reason list. The response also includes
+`portfolio` positions with ratio-only `weight` values and a `risk` summary.
 
 ## Runtime Data
 
