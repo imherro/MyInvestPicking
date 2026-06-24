@@ -35,10 +35,10 @@ def calculate_signal_confidence(
 
 def _factor_consistency(factors: dict[str, Any]) -> float:
     values = [
-        _value(factors.get("momentum")),
+        _value(factors.get("trend", factors.get("momentum"))),
+        _value(factors.get("growth")),
         _value(factors.get("quality")),
-        _value(factors.get("value")),
-        _value(factors.get("risk")),
+        _value(factors.get("industry_strength")),
     ]
     average = sum(values) / len(values)
     dispersion = max(values) - min(values)
@@ -48,16 +48,19 @@ def _factor_consistency(factors: dict[str, Any]) -> float:
 def _regime_alignment(factors: dict[str, Any], market_regime: dict[str, Any]) -> float:
     state = str(market_regime.get("state") or "range")
     momentum = _value(factors.get("momentum"))
+    trend = _value(factors.get("trend"), momentum)
+    growth = _value(factors.get("growth"))
+    industry_strength = _value(factors.get("industry_strength"))
     quality = _value(factors.get("quality"))
     value = _value(factors.get("value"))
     risk = _value(factors.get("risk"))
     if state == "trend":
-        return 0.65 * momentum + 0.20 * quality + 0.15 * risk
+        return 0.50 * trend + 0.25 * growth + 0.15 * industry_strength + 0.10 * quality
     if state == "crash":
         return 0.65 * risk + 0.25 * quality + 0.10 * value
     if state == "high_vol":
         return 0.55 * risk + 0.25 * quality + 0.20 * value
-    return 0.35 * value + 0.35 * risk + 0.30 * quality
+    return 0.30 * trend + 0.25 * growth + 0.20 * industry_strength + 0.15 * quality + 0.10 * risk
 
 
 def _volume_confirmation(metrics: dict[str, Any]) -> float:
@@ -82,10 +85,18 @@ def _volume_confirmation(metrics: dict[str, Any]) -> float:
 def _timeframe_alignment(metrics: dict[str, Any]) -> float:
     momentum_5d = _optional_float(metrics.get("momentum_5d"))
     momentum_20d = _optional_float(metrics.get("momentum_20d"))
+    momentum_60d = _optional_float(metrics.get("momentum_60d"))
+    momentum_120d = _optional_float(metrics.get("momentum_120d"))
     if momentum_5d is None or momentum_20d is None:
         return 0.50
-    if momentum_5d > 0 and momentum_20d > 0:
-        return 0.90 if momentum_5d <= momentum_20d * 2.5 else 0.75
+    medium_terms = [
+        value for value in [momentum_60d, momentum_120d] if value is not None
+    ]
+    medium_positive = sum(value > 0 for value in medium_terms)
+    if momentum_5d > 0 and momentum_20d > 0 and medium_positive == len(medium_terms):
+        return 0.90 if momentum_5d <= max(momentum_20d, 0.001) * 2.5 else 0.75
+    if momentum_20d > 0 and medium_positive > 0:
+        return 0.75
     if momentum_5d >= 0 and momentum_20d >= -0.02:
         return 0.65
     if momentum_5d < 0 and momentum_20d < 0:

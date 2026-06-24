@@ -29,6 +29,7 @@ http://localhost:8019
 - Market regime detection with dynamic risk budgets
 - Correlation risk, factor health, and portfolio stability metrics
 - Deterministic backtest and execution simulation metrics
+- Growth/trend scoring mode with separate value, growth, and trend candidate pools
 - Project structure for future strategy and risk modules
 
 ## Environment
@@ -52,7 +53,9 @@ GET /api/picks?date=2026-06-24&top_n=20
 Response fields include `trading_date`, `data_version`, `factor_version`,
 `universe_hash`, `snapshot_id`, `source`, `mock_mode`, `universe_size`, and
 structured stock picks with `score`, normalized factor scores, weighted
-contributions, raw metrics, and a short reason list. The response also includes
+contributions, raw metrics, and a short reason list. `score_profile` describes
+the active growth/trend scoring weights, and `candidate_pools` separates value,
+growth, and trend candidates before risk gates are applied. The response also includes
 `portfolio` positions with ratio-only `weight` values and a `risk` summary.
 Market state is exposed through `market_regime` and `risk_budget`, allowing
 position and exposure limits to adapt to trend, range, crash, or high-volatility

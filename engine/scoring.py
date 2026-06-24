@@ -2,6 +2,15 @@ from __future__ import annotations
 
 import pandas as pd
 
+GROWTH_TREND_WEIGHTS = {
+    "trend": 0.27,
+    "growth": 0.25,
+    "quality": 0.15,
+    "industry_strength": 0.15,
+    "risk": 0.10,
+    "value": 0.08,
+}
+
 
 def _rank_score(series: pd.Series, higher_is_better: bool = True) -> pd.Series:
     numeric = pd.to_numeric(series, errors="coerce").replace([float("inf"), -float("inf")], pd.NA)
@@ -28,15 +37,37 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
 
     scored = factors.copy()
     scored["momentum"] = _score_column(scored, "momentum_20d", True)
+    scored["momentum_60d_score"] = _score_column(scored, "momentum_60d", True)
+    scored["momentum_120d_score"] = _score_column(scored, "momentum_120d", True)
+    scored["amount_expansion_score"] = _score_column(scored, "amount_expansion_20d", True)
+    scored["high_120_proximity_score"] = _score_column(scored, "high_120_distance", True)
     scored["roe_score"] = _score_column(scored, "roe", True)
+    scored["roe_improvement_score"] = _score_column(scored, "roe_improvement", True)
     scored["revenue_growth_score"] = _score_column(scored, "revenue_growth_yoy", True)
     scored["net_profit_growth_score"] = _score_column(scored, "net_profit_growth_yoy", True)
     scored["cashflow_quality_score"] = _score_column(scored, "ocf_to_profit", True)
+    scored["growth_data_quality"] = _bounded_column(scored, "growth_data_quality")
     scored["quality"] = (
         0.40 * scored["roe_score"]
         + 0.25 * scored["revenue_growth_score"]
         + 0.20 * scored["net_profit_growth_score"]
         + 0.15 * scored["cashflow_quality_score"]
+    )
+    raw_growth = (
+        0.25 * scored["revenue_growth_score"]
+        + 0.25 * scored["net_profit_growth_score"]
+        + 0.20 * scored["roe_score"]
+        + 0.15 * scored["roe_improvement_score"]
+        + 0.10 * scored["amount_expansion_score"]
+        + 0.05 * scored["high_120_proximity_score"]
+    )
+    scored["growth"] = (raw_growth * (0.55 + 0.45 * scored["growth_data_quality"])).clip(0, 1)
+    scored["trend"] = (
+        0.20 * scored["momentum"]
+        + 0.40 * scored["momentum_60d_score"]
+        + 0.25 * scored["momentum_120d_score"]
+        + 0.10 * scored["high_120_proximity_score"]
+        + 0.05 * scored["amount_expansion_score"]
     )
 
     value_parts = []
@@ -46,17 +77,49 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
         value_parts.append(_rank_score(scored["pb"], False))
     scored["value"] = sum(value_parts) / len(value_parts) if value_parts else 0.5
     scored["risk"] = _score_column(scored, "volatility_20d", False)
+    scored["industry_strength"] = _bounded_column(scored, "industry_relative_strength")
 
     scored["score"] = (
-        0.35 * scored["momentum"]
-        + 0.25 * scored["quality"]
-        + 0.20 * scored["value"]
-        + 0.20 * scored["risk"]
+        GROWTH_TREND_WEIGHTS["trend"] * scored["trend"]
+        + GROWTH_TREND_WEIGHTS["growth"] * scored["growth"]
+        + GROWTH_TREND_WEIGHTS["quality"] * scored["quality"]
+        + GROWTH_TREND_WEIGHTS["industry_strength"] * scored["industry_strength"]
+        + GROWTH_TREND_WEIGHTS["risk"] * scored["risk"]
+        + GROWTH_TREND_WEIGHTS["value"] * scored["value"]
     ).clip(0, 1)
-    scored["momentum_contribution"] = 0.35 * scored["momentum"]
-    scored["quality_contribution"] = 0.25 * scored["quality"]
-    scored["value_contribution"] = 0.20 * scored["value"]
-    scored["risk_contribution"] = 0.20 * scored["risk"]
+    scored["trend_contribution"] = GROWTH_TREND_WEIGHTS["trend"] * scored["trend"]
+    scored["growth_contribution"] = GROWTH_TREND_WEIGHTS["growth"] * scored["growth"]
+    scored["quality_contribution"] = GROWTH_TREND_WEIGHTS["quality"] * scored["quality"]
+    scored["industry_strength_contribution"] = (
+        GROWTH_TREND_WEIGHTS["industry_strength"] * scored["industry_strength"]
+    )
+    scored["value_contribution"] = GROWTH_TREND_WEIGHTS["value"] * scored["value"]
+    scored["risk_contribution"] = GROWTH_TREND_WEIGHTS["risk"] * scored["risk"]
+    scored["momentum_contribution"] = scored["trend_contribution"]
+    scored["value_candidate_score"] = (
+        0.45 * scored["value"]
+        + 0.20 * scored["quality"]
+        + 0.15 * scored["risk"]
+        + 0.10 * scored["trend"]
+        + 0.10 * scored["industry_strength"]
+    ).clip(0, 1)
+    scored["growth_candidate_score"] = (
+        0.45 * scored["growth"]
+        + 0.20 * scored["quality"]
+        + 0.15 * scored["trend"]
+        + 0.10 * scored["industry_strength"]
+        + 0.10 * scored["risk"]
+    )
+    scored["growth_candidate_score"] = (
+        scored["growth_candidate_score"] * (0.70 + 0.30 * scored["growth_data_quality"])
+    ).clip(0, 1)
+    scored["trend_candidate_score"] = (
+        0.50 * scored["trend"]
+        + 0.20 * scored["industry_strength"]
+        + 0.15 * scored["growth"]
+        + 0.10 * scored["amount_expansion_score"]
+        + 0.05 * scored["risk"]
+    ).clip(0, 1)
     scored["risk_adjust_factor"] = (0.75 + 0.25 * scored["risk"]).clip(0.75, 1.0)
     scored["regime_multiplier"] = _regime_multiplier(scored, regime_state)
     scored["factor_health_score"] = _health_multiplier(scored)
@@ -71,20 +134,26 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
         * scored["liquidity_risk_multiplier"]
     ).clip(0, 1)
     return scored.sort_values(
-        ["final_score", "score", "momentum", "ts_code"],
-        ascending=[False, False, False, True],
+        ["final_score", "score", "trend", "growth", "ts_code"],
+        ascending=[False, False, False, False, True],
     ).reset_index(drop=True)
 
 
 def _regime_multiplier(scored: pd.DataFrame, regime_state: str | None) -> pd.Series:
     state = regime_state or "range"
     if state == "trend":
-        return (0.95 + 0.10 * scored["momentum"]).clip(0.95, 1.05)
+        return (0.95 + 0.07 * scored["trend"] + 0.03 * scored["growth"]).clip(0.95, 1.05)
     if state == "crash":
         return (0.80 + 0.20 * scored["risk"]).clip(0.80, 1.00)
     if state == "high_vol":
         return (0.85 + 0.15 * scored["risk"]).clip(0.85, 1.00)
-    return (0.95 + 0.05 * scored["value"]).clip(0.95, 1.00)
+    return (0.94 + 0.04 * scored["industry_strength"] + 0.02 * scored["trend"]).clip(0.94, 1.00)
+
+
+def _bounded_column(frame: pd.DataFrame, column: str) -> pd.Series:
+    if column not in frame.columns:
+        return pd.Series(0.5, index=frame.index, dtype="float64")
+    return pd.to_numeric(frame[column], errors="coerce").fillna(0.5).clip(0, 1)
 
 
 def _health_multiplier(scored: pd.DataFrame) -> pd.Series:

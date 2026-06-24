@@ -18,7 +18,7 @@ from engine.liquidity import filter_liquidity
 from engine.market_features import compute_market_features
 from engine.market_regime import detect_market_regime
 from engine.portfolio_stability import compute_portfolio_stability
-from engine.scoring import score_stocks
+from engine.scoring import GROWTH_TREND_WEIGHTS, score_stocks
 from engine.shadow_portfolio import build_shadow_portfolio
 from engine.snapshot import build_universe_hash, create_snapshot
 from engine.universe import filter_universe
@@ -34,17 +34,35 @@ def _round_float(value: Any, digits: int = 4) -> float | None:
     return round(float(value), digits)
 
 
-def _to_pick(row: pd.Series) -> dict[str, Any]:
+def _to_pick(
+    row: pd.Series,
+    *,
+    candidate_style: str = "composite",
+    candidate_score_column: str = "score",
+) -> dict[str, Any]:
     factors = {
         "momentum": _round_float(row.get("momentum")),
+        "trend": _round_float(row.get("trend")),
+        "growth": _round_float(row.get("growth")),
+        "growth_data_quality": _round_float(row.get("growth_data_quality")),
         "quality": _round_float(row.get("quality")),
         "value": _round_float(row.get("value")),
         "risk": _round_float(row.get("risk")),
+        "industry_strength": _round_float(row.get("industry_strength")),
+    }
+    candidate_scores = {
+        "value": _round_float(row.get("value_candidate_score")),
+        "growth": _round_float(row.get("growth_candidate_score")),
+        "trend": _round_float(row.get("trend_candidate_score")),
+        "composite": _round_float(row.get("score")),
     }
     return {
         "code": row["ts_code"],
         "name": row.get("name"),
         "industry": row.get("industry"),
+        "candidate_style": candidate_style,
+        "candidate_score": _round_float(row.get(candidate_score_column)),
+        "candidate_scores": candidate_scores,
         "score": _round_float(row.get("score")),
         "final_score": _round_float(row.get("final_score")),
         "risk_adjust_factor": _round_float(row.get("risk_adjust_factor")),
@@ -55,19 +73,28 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
         "factors": factors,
         "contribution": {
             "momentum": _round_float(row.get("momentum_contribution")),
+            "trend": _round_float(row.get("trend_contribution")),
+            "growth": _round_float(row.get("growth_contribution")),
             "quality": _round_float(row.get("quality_contribution")),
             "value": _round_float(row.get("value_contribution")),
             "risk": _round_float(row.get("risk_contribution")),
+            "industry_strength": _round_float(row.get("industry_strength_contribution")),
         },
         "metrics": {
             "momentum_5d": _round_float(row.get("momentum_5d")),
             "momentum_20d": _round_float(row.get("momentum_20d")),
+            "momentum_60d": _round_float(row.get("momentum_60d")),
+            "momentum_120d": _round_float(row.get("momentum_120d")),
             "volatility_20d": _round_float(row.get("volatility_20d")),
+            "amount_expansion_20d": _round_float(row.get("amount_expansion_20d")),
+            "high_120_distance": _round_float(row.get("high_120_distance")),
             "observation_count": _round_float(row.get("observation_count"), 0),
             "latest_amount": _round_float(row.get("latest_amount")),
             "latest_vol": _round_float(row.get("latest_vol")),
             "latest_pct_chg": _round_float(row.get("latest_pct_chg")),
             "roe": _round_float(row.get("roe")),
+            "roe_improvement": _round_float(row.get("roe_improvement")),
+            "growth_data_quality": _round_float(row.get("growth_data_quality")),
             "revenue_growth_yoy": _round_float(row.get("revenue_growth_yoy")),
             "net_profit_growth_yoy": _round_float(row.get("net_profit_growth_yoy")),
             "ocf_to_profit": _round_float(row.get("ocf_to_profit")),
@@ -77,6 +104,7 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
             "turnover_rate": _round_float(row.get("turnover_rate")),
             "volume_ratio": _round_float(row.get("volume_ratio")),
             "list_age_days": _round_float(row.get("list_age_days"), 0),
+            "industry_relative_strength": _round_float(row.get("industry_relative_strength")),
         },
         "reason": _build_reason(factors),
     }
@@ -86,9 +114,12 @@ def _build_reason(factors: dict[str, float | None]) -> list[str]:
     readable = []
     labels = {
         "momentum": "Momentum",
+        "trend": "Trend",
+        "growth": "Growth",
         "quality": "Quality",
         "value": "Valuation",
         "risk": "Risk control",
+        "industry_strength": "Industry strength",
     }
     for key, label in labels.items():
         value = factors.get(key)
@@ -122,6 +153,7 @@ def build_stock_picks(
     scored = score_stocks(factors, regime_state=str(market_regime["state"]))
     selected = scored.head(max(top_n, 0))
     results = [_to_pick(row) for _, row in selected.iterrows()]
+    candidate_pools = _build_candidate_pools(scored, max(top_n, 0))
     correlation_risk = compute_correlation_risk(
         market_data.daily,
         [pick["code"] for pick in results],
@@ -163,6 +195,8 @@ def build_stock_picks(
         mock_mode=market_data.mock_mode,
         results={
             "picks": results,
+            "candidate_pools": candidate_pools,
+            "score_profile": _score_profile(),
             "portfolio": portfolio_result["positions"],
             "signals": signals,
             "signal_summary": signal_summary,
@@ -210,5 +244,46 @@ def build_stock_picks(
         "universe_size": int(len(tradable_universe)),
         "portfolio": portfolio_result["positions"],
         "risk": portfolio_result["risk"],
+        "candidate_pools": candidate_pools,
+        "score_profile": _score_profile(),
         "data": results,
+    }
+
+
+def _build_candidate_pools(scored: pd.DataFrame, top_n: int) -> dict[str, list[dict[str, Any]]]:
+    limit = max(min(top_n, 10), 0)
+    pools = {
+        "value": ("value_candidate_score", "value"),
+        "growth": ("growth_candidate_score", "growth"),
+        "trend": ("trend_candidate_score", "trend"),
+    }
+    result: dict[str, list[dict[str, Any]]] = {}
+    for name, (score_column, style) in pools.items():
+        if scored.empty or score_column not in scored.columns:
+            result[name] = []
+            continue
+        sort_columns = [score_column, "industry_strength", "final_score", "ts_code"]
+        sort_orders = [False, False, False, True]
+        if name == "growth" and "growth_data_quality" in scored.columns:
+            sort_columns = ["growth_data_quality", *sort_columns]
+            sort_orders = [False, *sort_orders]
+        ranked = scored.sort_values(sort_columns, ascending=sort_orders).head(limit)
+        result[name] = [
+            _to_pick(row, candidate_style=style, candidate_score_column=score_column)
+            for _, row in ranked.iterrows()
+        ]
+    return result
+
+
+def _score_profile() -> dict[str, Any]:
+    return {
+        "mode": "growth_trend",
+        "weights": GROWTH_TREND_WEIGHTS,
+        "notes": {
+            "value": "估值权重从 0.20 降至 0.08",
+            "risk": "低波动风险权重从 0.20 降至 0.10",
+            "trend": "趋势使用 20/60/120 日强度、创新高距离和成交额放大",
+            "growth": "成长使用营收增速、利润增速、ROE、ROE 改善和成交额放大",
+            "industry_strength": "行业相对强弱进入总分，降低弱势老行业仅靠便宜估值反复霸榜的概率",
+        },
     }

@@ -9,7 +9,7 @@ from typing import Any, Iterable
 from config.settings import PROJECT_ROOT
 
 
-FACTOR_VERSION = "v2"
+FACTOR_VERSION = "v3"
 SNAPSHOT_DIR = PROJECT_ROOT / "data" / "frozen" / "snapshots"
 
 

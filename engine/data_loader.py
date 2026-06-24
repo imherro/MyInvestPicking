@@ -75,7 +75,7 @@ class TushareDataLoader:
         )
         latest_trade_date = get_latest_trading_date(trade_date, calendar)
         start_date = (
-            datetime.strptime(latest_trade_date, "%Y%m%d") - timedelta(days=90)
+            datetime.strptime(latest_trade_date, "%Y%m%d") - timedelta(days=260)
         ).strftime("%Y%m%d")
         window_calendar = self._cached_dataframe(
             "calendar",
@@ -100,7 +100,7 @@ class TushareDataLoader:
         )
         daily = self._cached_dataframe(
             "daily",
-            f"daily_window_v2_{start_date}_{latest_trade_date}",
+            f"daily_window_v3_{start_date}_{latest_trade_date}",
             lambda: self._load_daily_window(
                 pro,
                 window_calendar,
@@ -124,9 +124,10 @@ class TushareDataLoader:
             raise ValueError("Tushare returned no daily_basic rows")
         financial_indicator = self._cached_dataframe(
             "basic",
-            f"financial_indicator_{self._latest_report_period(latest_trade_date)}",
-            lambda: self._load_financial_indicator(
-                pro, self._latest_report_period(latest_trade_date)
+            f"financial_indicator_v2_{latest_trade_date}",
+            lambda: self._load_recent_financial_indicator(
+                pro,
+                self._recent_report_periods(latest_trade_date, count=2),
             ),
         )
 
@@ -147,7 +148,7 @@ class TushareDataLoader:
         trade_date = get_latest_trading_date(trade_date)
         rng = random.Random(int(trade_date))
         end = pd.Timestamp(datetime.strptime(trade_date, "%Y%m%d"))
-        dates = pd.bdate_range(end=end, periods=45)
+        dates = pd.bdate_range(end=end, periods=140)
 
         stocks = []
         daily_rows = []
@@ -217,15 +218,29 @@ class TushareDataLoader:
                     "volume_ratio": round(0.7 + rng.random() * 1.8, 4),
                 }
             )
-            financial_rows.append(
-                {
-                    "ts_code": ts_code,
-                    "end_date": self._latest_report_period(latest_date),
-                    "roe": round(roe, 4),
-                    "revenue_growth_yoy": round(-5 + (idx % 12) * 2.5 + rng.random() * 3, 4),
-                    "net_profit_growth_yoy": round(-8 + (idx % 10) * 3.2 + rng.random() * 4, 4),
-                    "ocf_to_profit": round(0.55 + (idx % 8) * 0.12 + rng.random() * 0.2, 4),
-                }
+            current_period, previous_period = self._recent_report_periods(latest_date, count=2)
+            revenue_growth = -5 + (idx % 12) * 2.5 + rng.random() * 3
+            profit_growth = -8 + (idx % 10) * 3.2 + rng.random() * 4
+            roe_delta = -1.5 + (idx % 6) * 0.55 + rng.random() * 0.4
+            financial_rows.extend(
+                [
+                    {
+                        "ts_code": ts_code,
+                        "end_date": previous_period,
+                        "roe": round(max(0.1, roe - roe_delta), 4),
+                        "revenue_growth_yoy": round(revenue_growth - rng.uniform(-2.0, 2.5), 4),
+                        "net_profit_growth_yoy": round(profit_growth - rng.uniform(-3.0, 3.5), 4),
+                        "ocf_to_profit": round(0.50 + (idx % 8) * 0.10 + rng.random() * 0.18, 4),
+                    },
+                    {
+                        "ts_code": ts_code,
+                        "end_date": current_period,
+                        "roe": round(roe, 4),
+                        "revenue_growth_yoy": round(revenue_growth, 4),
+                        "net_profit_growth_yoy": round(profit_growth, 4),
+                        "ocf_to_profit": round(0.55 + (idx % 8) * 0.12 + rng.random() * 0.2, 4),
+                    },
+                ]
             )
 
         stock_basic = pd.DataFrame(stocks)
@@ -338,6 +353,22 @@ class TushareDataLoader:
                 ]
             )
 
+    def _load_recent_financial_indicator(self, pro, periods: list[str]) -> pd.DataFrame:
+        frames = [self._load_financial_indicator(pro, period) for period in periods]
+        frames = [frame for frame in frames if not frame.empty]
+        if not frames:
+            return pd.DataFrame(
+                columns=[
+                    "ts_code",
+                    "end_date",
+                    "roe",
+                    "or_yoy",
+                    "netprofit_yoy",
+                    "ocf_to_profit",
+                ]
+            )
+        return pd.concat(frames, ignore_index=True)
+
     @staticmethod
     def _latest_report_period(trade_date: str) -> str:
         parsed = datetime.strptime(trade_date, "%Y%m%d")
@@ -347,6 +378,16 @@ class TushareDataLoader:
             if candidate <= trade_date:
                 return candidate
         return f"{year - 1}1231"
+
+    @classmethod
+    def _recent_report_periods(cls, trade_date: str, count: int) -> list[str]:
+        latest = cls._latest_report_period(trade_date)
+        latest_year = int(latest[:4])
+        periods = []
+        for year in range(latest_year, latest_year - 3, -1):
+            periods.extend([f"{year}1231", f"{year}0930", f"{year}0630", f"{year}0331"])
+        periods = [period for period in periods if period <= latest]
+        return periods[: max(count, 1)]
 
     @staticmethod
     def _data_version(source: str, *frames: pd.DataFrame) -> str:

@@ -32,6 +32,9 @@ def test_index_page() -> None:
     assert 'src="https://invest.okbbc.com/footer.js"' in response.text
     assert '<header class="page-header">' in response.text
     assert "候选榜" in response.text
+    assert "价值候选" in response.text
+    assert "成长候选" in response.text
+    assert "趋势候选" in response.text
     assert "信号榜" in response.text
     assert "拦截面板" in response.text
     assert "影子组合" in response.text
@@ -47,7 +50,7 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert payload["source"] == "mock"
     assert payload["mock_mode"] is True
     assert payload["data_version"]
-    assert payload["factor_version"] == "v2"
+    assert payload["factor_version"] == "v3"
     assert payload["snapshot_id"]
     assert payload["universe_hash"]
     assert len(payload["data"]) == 5
@@ -72,6 +75,8 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert "portfolio_stability" in payload
     assert "backtest" in payload
     assert "gate_summary" in payload
+    assert "candidate_pools" in payload
+    assert "score_profile" in payload
     assert "shadow_portfolio" in payload
     assert 0 <= payload["factor_health"]["factor_health_score"] <= 1.05
     assert 0 <= payload["portfolio_stability"]["stability_score"] <= 1
@@ -82,6 +87,11 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert payload["backtest"]["drawdown_curve"]
     assert payload["shadow_portfolio"]["status"] == "ok"
     assert payload["shadow_portfolio"]["assumptions"]["ratio_only"] is True
+    assert payload["score_profile"]["mode"] == "growth_trend"
+    assert payload["score_profile"]["weights"]["value"] == 0.08
+    assert payload["score_profile"]["weights"]["risk"] == 0.10
+    assert {"value", "growth", "trend"} <= set(payload["candidate_pools"])
+    assert all(payload["candidate_pools"][key] for key in ["value", "growth", "trend"])
     assert payload["signal_summary"]["operation_counts"]
     assert payload["gate_summary"]["backtest_gate"]["state"] in {
         "normal",
@@ -103,10 +113,30 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert {"code", "score", "final_score", "factors", "metrics", "contribution", "reason"} <= set(
         first
     )
-    assert {"momentum", "quality", "value", "risk"} <= set(first["factors"])
+    assert {
+        "momentum",
+        "trend",
+        "growth",
+        "growth_data_quality",
+        "quality",
+        "value",
+        "risk",
+        "industry_strength",
+    } <= set(first["factors"])
     assert {"revenue_growth_yoy", "net_profit_growth_yoy", "ocf_to_profit"} <= set(
         first["metrics"]
     )
+    assert {
+        "momentum_60d",
+        "momentum_120d",
+        "amount_expansion_20d",
+        "high_120_distance",
+        "roe_improvement",
+        "growth_data_quality",
+        "industry_relative_strength",
+    } <= set(first["metrics"])
+    assert {"value", "growth", "trend", "composite"} <= set(first["candidate_scores"])
+    assert first["candidate_style"] == "composite"
     assert "factor_health_score" in first
     assert "exchange_risk_multiplier" in first
     assert "liquidity_risk_multiplier" in first
@@ -154,6 +184,8 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["portfolio_stability"] == second["portfolio_stability"]
     assert first["backtest"] == second["backtest"]
     assert first["gate_summary"] == second["gate_summary"]
+    assert first["candidate_pools"] == second["candidate_pools"]
+    assert first["score_profile"] == second["score_profile"]
     assert first["shadow_portfolio"] == second["shadow_portfolio"]
 
 

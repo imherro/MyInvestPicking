@@ -138,7 +138,7 @@
       }
 
       .candidate-table {
-        min-width: 780px;
+        min-width: 560px;
       }
 
       .signal-table {
@@ -260,6 +260,34 @@
         flex-wrap: wrap;
         gap: 8px;
         margin-bottom: 14px;
+      }
+
+      .candidate-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        padding: 18px 20px 20px;
+      }
+
+      .candidate-group {
+        min-width: 0;
+      }
+
+      .candidate-group-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 750;
+      }
+
+      .candidate-group-title span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
       }
 
       .gate-grid {
@@ -435,6 +463,11 @@
           padding: 14px 14px 16px;
         }
 
+        .candidate-grid {
+          grid-template-columns: 1fr;
+          padding: 14px 14px 16px;
+        }
+
         main {
           width: min(100% - 24px, 1040px);
           padding: 24px 0;
@@ -463,24 +496,70 @@
             <h2 id="candidate-title">候选榜</h2>
             <div class="status" id="summary">正在加载 /api/picks</div>
           </div>
-          <div class="table-wrap">
-            <table class="candidate-table" aria-label="候选股票排序">
-              <thead>
-                <tr>
-                  <th>排名</th>
-                  <th>代码</th>
-                  <th>名称</th>
-                  <th>Final</th>
-                  <th>基础分</th>
-                  <th>候选价值</th>
-                </tr>
-              </thead>
-              <tbody id="candidates">
-                <tr>
-                  <td colspan="6" class="empty">暂无候选。</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="candidate-grid">
+            <div class="candidate-group">
+              <div class="candidate-group-title">价值候选 <span>便宜但必须有行业强弱确认</span></div>
+              <div class="table-wrap">
+                <table class="candidate-table" aria-label="价值候选排序">
+                  <thead>
+                    <tr>
+                      <th>排名</th>
+                      <th>代码</th>
+                      <th>名称</th>
+                      <th>候选分</th>
+                      <th>关键因子</th>
+                    </tr>
+                  </thead>
+                  <tbody id="value-candidates">
+                    <tr>
+                      <td colspan="5" class="empty">暂无候选。</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="candidate-group">
+              <div class="candidate-group-title">成长候选 <span>营收、利润、ROE 改善</span></div>
+              <div class="table-wrap">
+                <table class="candidate-table" aria-label="成长候选排序">
+                  <thead>
+                    <tr>
+                      <th>排名</th>
+                      <th>代码</th>
+                      <th>名称</th>
+                      <th>候选分</th>
+                      <th>关键因子</th>
+                    </tr>
+                  </thead>
+                  <tbody id="growth-candidates">
+                    <tr>
+                      <td colspan="5" class="empty">暂无候选。</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="candidate-group">
+              <div class="candidate-group-title">趋势候选 <span>60/120 日趋势和放量</span></div>
+              <div class="table-wrap">
+                <table class="candidate-table" aria-label="趋势候选排序">
+                  <thead>
+                    <tr>
+                      <th>排名</th>
+                      <th>代码</th>
+                      <th>名称</th>
+                      <th>候选分</th>
+                      <th>关键因子</th>
+                    </tr>
+                  </thead>
+                  <tbody id="trend-candidates">
+                    <tr>
+                      <td colspan="5" class="empty">暂无候选。</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -548,7 +627,11 @@
     <script src="https://invest.okbbc.com/footer.js" data-target="[data-myinvest-footer]" defer></script>
     <script>
       const picksBody = document.querySelector("#picks");
-      const candidatesBody = document.querySelector("#candidates");
+      const candidateBodies = {
+        value: document.querySelector("#value-candidates"),
+        growth: document.querySelector("#growth-candidates"),
+        trend: document.querySelector("#trend-candidates"),
+      };
       const summary = document.querySelector("#summary");
       const gateStatus = document.querySelector("#gate-status");
       const gateHeadline = document.querySelector("#gate-headline");
@@ -577,6 +660,7 @@
           const health = payload.factor_health?.factor_health_score ?? 0;
           const stability = payload.portfolio_stability?.stability_score ?? 0;
           const sharpe = payload.backtest?.metrics?.sharpe ?? 0;
+          const scoreMode = payload.score_profile?.mode || "growth_trend";
           const signalCounts = payload.signal_summary?.counts || {};
           const operationCounts = payload.signal_summary?.operation_counts || {};
           const buyCount = signalCounts.BUY ?? 0;
@@ -591,16 +675,18 @@
             `因子健康度 ${formatValue(health)}`,
             `组合稳定度 ${formatValue(stability)}`,
             `回测 Sharpe ${formatValue(sharpe)}`,
+            `打分模式 ${scoreMode}`,
             `${signals.length} 个信号`,
           ].join("\n");
           summary.innerHTML = [
             summaryPill("日期", payload.trading_date || payload.date, summary.title),
             summaryPill("市场", regime.state || "range", summary.title),
             summaryPill("暴露", formatValue(exposure), summary.title),
+            summaryPill("模式", scoreMode === "growth_trend" ? "成长/趋势" : scoreMode, summary.title),
             summaryPill("信号", `买 ${buyCount} / 持 ${holdCount} / 禁 ${noTradeCount}`, summary.title),
             summaryPill("状态", `可买 ${buyableCount} / 观察 ${watchCount} / 拦截 ${blockedCount} / 研究 ${researchCount}`, summary.title),
           ].join("");
-          renderCandidates(payload.data || []);
+          renderCandidatePools(payload.candidate_pools || {});
           renderGateSummary(payload.gate_summary);
 
           if (signals.length === 0) {
@@ -638,8 +724,9 @@
         })
         .catch(() => {
           summary.textContent = "API 不可用";
-          candidatesBody.innerHTML =
-            '<tr><td colspan="6" class="error">候选榜加载失败。</td></tr>';
+          Object.values(candidateBodies).forEach((body) => {
+            body.innerHTML = '<tr><td colspan="5" class="error">候选榜加载失败。</td></tr>';
+          });
           gateStatus.textContent = "API 不可用";
           shadowStatus.textContent = "API 不可用";
           picksBody.innerHTML =
@@ -704,13 +791,20 @@
         ].join("\n");
       }
 
-      function renderCandidates(candidates) {
+      function renderCandidatePools(pools) {
+        const fallback = pools.composite || [];
+        renderCandidates(candidateBodies.value, pools.value || fallback, "value");
+        renderCandidates(candidateBodies.growth, pools.growth || fallback, "growth");
+        renderCandidates(candidateBodies.trend, pools.trend || fallback, "trend");
+      }
+
+      function renderCandidates(targetBody, candidates, style) {
         if (!candidates.length) {
-          candidatesBody.innerHTML =
-            '<tr><td colspan="6" class="empty">暂无候选。</td></tr>';
+          targetBody.innerHTML =
+            '<tr><td colspan="5" class="empty">暂无候选。</td></tr>';
           return;
         }
-        candidatesBody.innerHTML = candidates
+        targetBody.innerHTML = candidates
           .map((candidate, index) => {
             const detail = [
               scoreDetail(candidate),
@@ -722,18 +816,27 @@
                 <td>${index + 1}</td>
                 <td class="compact-cell" title="${escapeAttr(codeDetail(candidate))}">${escapeHtml(candidate.code)}</td>
                 <td class="compact-cell" title="${escapeAttr(nameDetail(candidate))}">${escapeHtml(candidate.name || "-")}</td>
-                <td class="score-cell" title="${escapeAttr(detail)}"><strong>${formatValue(candidate.final_score)}</strong></td>
-                <td>${formatValue(candidate.score)}</td>
-                <td class="reason" title="${escapeAttr(detail)}">${escapeHtml(candidateValueText(candidate))}</td>
+                <td class="score-cell" title="${escapeAttr(detail)}"><strong>${formatValue(candidate.candidate_score ?? candidate.score)}</strong></td>
+                <td class="reason" title="${escapeAttr(detail)}">${escapeHtml(candidateValueText(candidate, style))}</td>
               </tr>
             `;
           })
           .join("");
       }
 
-      function candidateValueText(candidate) {
+      function candidateValueText(candidate, style) {
         const factors = candidate.factors || {};
-        return `动量 ${formatValue(factors.momentum)} / 估值 ${formatValue(factors.value)} / 风险 ${formatValue(factors.risk)}`;
+        const metrics = candidate.metrics || {};
+        if (style === "value") {
+          return `估值 ${formatValue(factors.value)} / 行业 ${formatValue(factors.industry_strength)} / 质量 ${formatValue(factors.quality)}`;
+        }
+        if (style === "growth") {
+          if (Number(metrics.growth_data_quality ?? factors.growth_data_quality ?? 0) < 0.5) {
+            return `财报覆盖 ${formatValue(metrics.growth_data_quality ?? factors.growth_data_quality)} / 成长 ${formatValue(factors.growth)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
+          }
+          return `成长 ${formatValue(factors.growth)} / 营收 ${formatValue(metrics.revenue_growth_yoy)} / ROE改善 ${formatValue(metrics.roe_improvement)}`;
+        }
+        return `趋势 ${formatValue(factors.trend)} / 60日 ${formatValue(metrics.momentum_60d)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
       }
 
       function nameDetail(signal) {
@@ -749,9 +852,12 @@
 
       function scoreDetail(signal) {
         const factors = signal.factors || {};
+        const metrics = signal.metrics || {};
         return [
           `最终分 ${formatValue(signal.final_score)} | 基础分 ${formatValue(signal.score)}`,
-          `动量 ${formatValue(factors.momentum)} | 质量 ${formatValue(factors.quality)}`,
+          `趋势 ${formatValue(factors.trend)} | 成长 ${formatValue(factors.growth)} | 行业强弱 ${formatValue(factors.industry_strength)}`,
+          `成长数据覆盖 ${formatValue(metrics.growth_data_quality ?? factors.growth_data_quality)}`,
+          `20日动量 ${formatValue(factors.momentum)} | 质量 ${formatValue(factors.quality)}`,
           `估值 ${formatValue(factors.value)} | 风险 ${formatValue(factors.risk)}`,
           `风险调整 ${formatValue(signal.risk_adjust_factor)} | 市场状态 ${formatValue(signal.regime_multiplier)}`,
           `健康度 ${formatValue(signal.factor_health_score)} | 交易所 ${formatValue(signal.exchange_risk_multiplier)} | 流动性 ${formatValue(signal.liquidity_risk_multiplier)}`,
