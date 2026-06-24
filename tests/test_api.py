@@ -14,6 +14,7 @@ warnings.filterwarnings(
 from fastapi.testclient import TestClient
 
 from app.main import app
+from risk.portfolio_builder import build_portfolio
 
 
 client = TestClient(app)
@@ -47,6 +48,10 @@ def test_picks_endpoint_returns_structured_results() -> None:
         "max_position_per_stock"
     ]
     assert payload["risk"]["portfolio_exposure"] <= payload["risk_budget"]["target_exposure"]
+    assert payload["risk"]["max_beijing_weight"] == payload["risk_budget"]["max_beijing_weight"]
+    assert payload["risk"]["exchange_exposure"].get("BJ", 0) <= payload["risk_budget"][
+        "max_beijing_weight"
+    ]
     assert "correlation_risk" in payload
     assert "factor_health" in payload
     assert "concentration_risk" in payload
@@ -69,6 +74,8 @@ def test_picks_endpoint_returns_structured_results() -> None:
         first["metrics"]
     )
     assert "factor_health_score" in first
+    assert "exchange_risk_multiplier" in first
+    assert "liquidity_risk_multiplier" in first
 
     first_position = payload["portfolio"][0]
     assert {"code", "weight", "score", "final_score"} <= set(first_position)
@@ -93,3 +100,22 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["factor_health"] == second["factor_health"]
     assert first["portfolio_stability"] == second["portfolio_stability"]
     assert first["backtest"] == second["backtest"]
+
+
+def test_portfolio_caps_beijing_exchange_exposure() -> None:
+    picks = [
+        {"code": "920001.BJ", "final_score": 0.9, "industry": "A"},
+        {"code": "920002.BJ", "final_score": 0.8, "industry": "B"},
+        {"code": "600001.SH", "final_score": 0.7, "industry": "C"},
+        {"code": "000001.SZ", "final_score": 0.6, "industry": "D"},
+    ]
+
+    result = build_portfolio(
+        picks,
+        max_position_per_stock=0.6,
+        max_industry_weight=0.8,
+        target_exposure=1.0,
+        max_beijing_weight=0.15,
+    )
+
+    assert result["risk"]["exchange_exposure"]["BJ"] <= 0.15

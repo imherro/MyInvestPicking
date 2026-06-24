@@ -9,6 +9,7 @@ from config.settings import DEFAULT_TOP_N
 from engine.data_loader import TushareDataLoader, format_api_date
 from engine.factor_decay import add_factor_health, summarize_factor_health
 from engine.factor_engine import compute_factors
+from engine.liquidity import filter_liquidity
 from engine.market_features import compute_market_features
 from engine.market_regime import detect_market_regime
 from engine.portfolio_stability import compute_portfolio_stability
@@ -43,6 +44,8 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
         "risk_adjust_factor": _round_float(row.get("risk_adjust_factor")),
         "regime_multiplier": _round_float(row.get("regime_multiplier")),
         "factor_health_score": _round_float(row.get("factor_health_score")),
+        "exchange_risk_multiplier": _round_float(row.get("exchange_risk_multiplier")),
+        "liquidity_risk_multiplier": _round_float(row.get("liquidity_risk_multiplier")),
         "factors": factors,
         "contribution": {
             "momentum": _round_float(row.get("momentum_contribution")),
@@ -54,6 +57,10 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
             "momentum_5d": _round_float(row.get("momentum_5d")),
             "momentum_20d": _round_float(row.get("momentum_20d")),
             "volatility_20d": _round_float(row.get("volatility_20d")),
+            "observation_count": _round_float(row.get("observation_count"), 0),
+            "latest_amount": _round_float(row.get("latest_amount")),
+            "latest_vol": _round_float(row.get("latest_vol")),
+            "latest_pct_chg": _round_float(row.get("latest_pct_chg")),
             "roe": _round_float(row.get("roe")),
             "revenue_growth_yoy": _round_float(row.get("revenue_growth_yoy")),
             "net_profit_growth_yoy": _round_float(row.get("net_profit_growth_yoy")),
@@ -61,6 +68,9 @@ def _to_pick(row: pd.Series) -> dict[str, Any]:
             "pe": _round_float(row.get("pe")),
             "pb": _round_float(row.get("pb")),
             "close": _round_float(row.get("close")),
+            "turnover_rate": _round_float(row.get("turnover_rate")),
+            "volume_ratio": _round_float(row.get("volume_ratio")),
+            "list_age_days": _round_float(row.get("list_age_days"), 0),
         },
         "reason": _build_reason(factors),
     }
@@ -97,6 +107,7 @@ def build_stock_picks(
     factors = compute_factors(market_data)
     if not factors.empty:
         factors = factors[factors["ts_code"].isin(tradable_codes)]
+    factors = filter_liquidity(factors)
     factors = add_factor_health(factors)
     factor_health = summarize_factor_health(factors)
 

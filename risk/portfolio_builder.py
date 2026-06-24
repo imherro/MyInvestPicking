@@ -9,6 +9,7 @@ from risk.exposure_risk import calculate_industry_exposure, cap_industry_exposur
 DEFAULT_MAX_POSITION_PER_STOCK = 0.10
 DEFAULT_MAX_INDUSTRY_WEIGHT = 0.30
 DEFAULT_DRAWDOWN_THRESHOLD = 0.08
+DEFAULT_MAX_BEIJING_WEIGHT = 0.15
 
 
 def build_portfolio(
@@ -19,6 +20,7 @@ def build_portfolio(
     target_exposure: float = 1.0,
     correlation_clusters: list[dict[str, Any]] | None = None,
     max_cluster_weight: float = 0.45,
+    max_beijing_weight: float = DEFAULT_MAX_BEIJING_WEIGHT,
 ) -> dict[str, Any]:
     if not picks:
         return _empty_portfolio(
@@ -26,6 +28,7 @@ def build_portfolio(
             max_industry_weight,
             drawdown_threshold,
             target_exposure,
+            max_beijing_weight,
         )
 
     positions = _initial_score_weighted_positions(picks)
@@ -36,6 +39,7 @@ def build_portfolio(
         correlation_clusters or [],
         max_cluster_weight,
     )
+    positions, exchange_exposure = _cap_beijing_exposure(positions, max_beijing_weight)
     positions = _scale_to_target_exposure(positions, target_exposure)
 
     estimated_drawdown = estimate_portfolio_drawdown(positions)
@@ -48,6 +52,7 @@ def build_portfolio(
     positions = _round_positions(positions)
     positions = _trim_rounding_excess(positions, target_exposure)
     industry_exposure = calculate_industry_exposure(positions)
+    exchange_exposure = calculate_exchange_exposure(positions)
     invested_weight = round(sum(position["weight"] for position in positions), 6)
     cash_weight = round(max(0.0, 1.0 - invested_weight), 6)
     expected_volatility = round(
@@ -64,9 +69,11 @@ def build_portfolio(
             "max_position_per_stock": max_position_per_stock,
             "max_industry_weight": max_industry_weight,
             "max_cluster_weight": max_cluster_weight,
+            "max_beijing_weight": max_beijing_weight,
             "target_exposure": target_exposure,
             "portfolio_exposure": invested_weight,
             "industry_exposure": industry_exposure,
+            "exchange_exposure": exchange_exposure,
             "cluster_exposure": cluster_exposure,
             "estimated_drawdown": estimated_drawdown,
             "drawdown_guard": drawdown_guard,
@@ -168,6 +175,41 @@ def _cap_cluster_exposure(
     return adjusted, cluster_exposure
 
 
+def calculate_exchange_exposure(positions: list[dict[str, Any]]) -> dict[str, float]:
+    exposure: dict[str, float] = {}
+    for position in positions:
+        exchange = _exchange_code(position)
+        exposure[exchange] = exposure.get(exchange, 0.0) + float(position.get("weight") or 0)
+    return {exchange: round(weight, 6) for exchange, weight in sorted(exposure.items())}
+
+
+def _cap_beijing_exposure(
+    positions: list[dict[str, Any]],
+    max_beijing_weight: float,
+) -> tuple[list[dict[str, Any]], dict[str, float]]:
+    adjusted = [dict(position) for position in positions]
+    beijing_weight = sum(
+        float(position.get("weight") or 0)
+        for position in adjusted
+        if _exchange_code(position) == "BJ"
+    )
+    if beijing_weight <= max_beijing_weight or beijing_weight <= 0:
+        return adjusted, calculate_exchange_exposure(adjusted)
+
+    scale = max_beijing_weight / beijing_weight
+    for position in adjusted:
+        if _exchange_code(position) == "BJ":
+            position["weight"] = float(position["weight"]) * scale
+    return adjusted, calculate_exchange_exposure(adjusted)
+
+
+def _exchange_code(position: dict[str, Any]) -> str:
+    code = str(position.get("code") or "")
+    if "." not in code:
+        return "Unknown"
+    return code.rsplit(".", 1)[-1]
+
+
 def _scale_to_target_exposure(
     positions: list[dict[str, Any]],
     target_exposure: float,
@@ -192,6 +234,7 @@ def _empty_portfolio(
     max_industry_weight: float,
     drawdown_threshold: float,
     target_exposure: float,
+    max_beijing_weight: float,
 ) -> dict[str, Any]:
     return {
         "positions": [],
@@ -199,9 +242,11 @@ def _empty_portfolio(
             "max_position_per_stock": max_position_per_stock,
             "max_industry_weight": max_industry_weight,
             "max_cluster_weight": 0.45,
+            "max_beijing_weight": max_beijing_weight,
             "target_exposure": target_exposure,
             "portfolio_exposure": 0.0,
             "industry_exposure": {},
+            "exchange_exposure": {},
             "cluster_exposure": {},
             "estimated_drawdown": 0.0,
             "drawdown_guard": {

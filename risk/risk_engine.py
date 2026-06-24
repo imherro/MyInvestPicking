@@ -19,4 +19,5 @@ def build_risk_managed_portfolio(
         target_exposure=float(budget.get("target_exposure", 1.0)),
         correlation_clusters=correlation_clusters,
         max_cluster_weight=float(budget.get("max_cluster_weight", 0.45)),
+        max_beijing_weight=float(budget.get("max_beijing_weight", 0.15)),
     )

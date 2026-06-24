@@ -12,12 +12,15 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
 
     daily["close"] = pd.to_numeric(daily["close"], errors="coerce")
     daily["pct_chg"] = pd.to_numeric(daily.get("pct_chg"), errors="coerce")
+    daily["amount"] = pd.to_numeric(daily.get("amount"), errors="coerce")
+    daily["vol"] = pd.to_numeric(daily.get("vol"), errors="coerce")
     daily = daily.dropna(subset=["ts_code", "trade_date", "close"])
     daily = daily.sort_values(["trade_date", "ts_code"])
 
     close_wide = daily.pivot_table(index="trade_date", columns="ts_code", values="close")
     returns = close_wide.pct_change()
     latest_close = close_wide.iloc[-1]
+    observation_count = close_wide.notna().sum()
     if len(close_wide) > 5:
         base_close_5d = close_wide.shift(5).iloc[-1]
     else:
@@ -38,11 +41,24 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
             "momentum_5d": momentum_5d.values,
             "momentum_20d": momentum_20d.values,
             "volatility_20d": volatility_20d.reindex(latest_close.index).values,
+            "observation_count": observation_count.reindex(latest_close.index).values,
             "close": latest_close.values,
         }
     )
 
-    factors = factors.merge(latest_daily[["ts_code", "trade_date"]], on="ts_code", how="left")
+    latest_columns = [
+        column
+        for column in ["ts_code", "trade_date", "amount", "vol", "pct_chg"]
+        if column in latest_daily.columns
+    ]
+    factors = factors.merge(latest_daily[latest_columns], on="ts_code", how="left")
+    factors = factors.rename(
+        columns={
+            "amount": "latest_amount",
+            "vol": "latest_vol",
+            "pct_chg": "latest_pct_chg",
+        }
+    )
 
     daily_basic = market_data.daily_basic.copy()
     if not daily_basic.empty:
@@ -90,20 +106,34 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
     stock_basic = market_data.stock_basic.copy()
     if not stock_basic.empty:
         keep_columns = [
-            column for column in ["ts_code", "name", "industry"] if column in stock_basic.columns
+            column
+            for column in ["ts_code", "name", "industry", "list_date"]
+            if column in stock_basic.columns
         ]
         factors = factors.merge(stock_basic[keep_columns], on="ts_code", how="left")
+    factors["exchange"] = factors["ts_code"].astype(str).str.rsplit(".", n=1).str[-1]
+    if "list_date" in factors.columns:
+        trade_date = pd.to_datetime(str(market_data.trade_date), format="%Y%m%d", errors="coerce")
+        list_dates = pd.to_datetime(factors["list_date"].astype(str), format="%Y%m%d", errors="coerce")
+        factors["list_age_days"] = (trade_date - list_dates).dt.days
 
     for column in [
         "momentum_20d",
         "momentum_5d",
         "volatility_20d",
+        "observation_count",
+        "latest_amount",
+        "latest_vol",
+        "latest_pct_chg",
         "pe",
         "pb",
         "roe",
         "revenue_growth_yoy",
         "net_profit_growth_yoy",
         "ocf_to_profit",
+        "turnover_rate",
+        "volume_ratio",
+        "list_age_days",
     ]:
         if column in factors.columns:
             factors[column] = pd.to_numeric(factors[column], errors="coerce")

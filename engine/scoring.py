@@ -60,11 +60,15 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
     scored["risk_adjust_factor"] = (0.75 + 0.25 * scored["risk"]).clip(0.75, 1.0)
     scored["regime_multiplier"] = _regime_multiplier(scored, regime_state)
     scored["factor_health_score"] = _health_multiplier(scored)
+    scored["exchange_risk_multiplier"] = _exchange_risk_multiplier(scored)
+    scored["liquidity_risk_multiplier"] = _liquidity_risk_multiplier(scored)
     scored["final_score"] = (
         scored["score"]
         * scored["risk_adjust_factor"]
         * scored["regime_multiplier"]
         * scored["factor_health_score"]
+        * scored["exchange_risk_multiplier"]
+        * scored["liquidity_risk_multiplier"]
     ).clip(0, 1)
     return scored.sort_values(
         ["final_score", "score", "momentum", "ts_code"],
@@ -88,3 +92,36 @@ def _health_multiplier(scored: pd.DataFrame) -> pd.Series:
         return pd.Series(1.0, index=scored.index, dtype="float64")
     health = pd.to_numeric(scored["factor_health_score"], errors="coerce").fillna(1.0)
     return health.clip(0.4, 1.05)
+
+
+def _exchange_risk_multiplier(scored: pd.DataFrame) -> pd.Series:
+    if "exchange" in scored.columns:
+        exchange = scored["exchange"].astype(str)
+    else:
+        exchange = scored["ts_code"].astype(str).str.rsplit(".", n=1).str[-1]
+
+    multiplier = pd.Series(1.0, index=scored.index, dtype="float64")
+    multiplier.loc[exchange == "BJ"] = 0.70
+    return multiplier
+
+
+def _liquidity_risk_multiplier(scored: pd.DataFrame) -> pd.Series:
+    multiplier = pd.Series(1.0, index=scored.index, dtype="float64")
+
+    if "latest_amount" in scored.columns:
+        latest_amount = pd.to_numeric(scored["latest_amount"], errors="coerce")
+        multiplier.loc[latest_amount < 100_000] *= 0.90
+
+    if "turnover_rate" in scored.columns:
+        turnover_rate = pd.to_numeric(scored["turnover_rate"], errors="coerce")
+        multiplier.loc[turnover_rate < 1.0] *= 0.90
+
+    if "observation_count" in scored.columns:
+        observations = pd.to_numeric(scored["observation_count"], errors="coerce")
+        multiplier.loc[observations < 40] *= 0.85
+
+    if "list_age_days" in scored.columns:
+        list_age_days = pd.to_numeric(scored["list_age_days"], errors="coerce")
+        multiplier.loc[list_age_days < 180] *= 0.85
+
+    return multiplier.clip(0.50, 1.0)
