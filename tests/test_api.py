@@ -51,8 +51,14 @@ def test_picks_endpoint_returns_structured_results() -> None:
     assert "factor_health" in payload
     assert "concentration_risk" in payload
     assert "portfolio_stability" in payload
+    assert "backtest" in payload
     assert 0 <= payload["factor_health"]["factor_health_score"] <= 1.05
     assert 0 <= payload["portfolio_stability"]["stability_score"] <= 1
+    assert {"cagr", "sharpe", "max_drawdown", "turnover", "win_rate"} <= set(
+        payload["backtest"]["metrics"]
+    )
+    assert payload["backtest"]["equity_curve"]
+    assert payload["backtest"]["drawdown_curve"]
 
     first = payload["data"][0]
     assert {"code", "score", "final_score", "factors", "metrics", "contribution", "reason"} <= set(
@@ -86,3 +92,4 @@ def test_picks_endpoint_is_deterministic_for_same_input() -> None:
     assert first["correlation_risk"] == second["correlation_risk"]
     assert first["factor_health"] == second["factor_health"]
     assert first["portfolio_stability"] == second["portfolio_stability"]
+    assert first["backtest"] == second["backtest"]

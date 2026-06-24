@@ -4,6 +4,7 @@ from typing import Any
 
 import pandas as pd
 
+from backtest.engine import run_backtest
 from config.settings import DEFAULT_TOP_N
 from engine.data_loader import TushareDataLoader, format_api_date
 from engine.factor_decay import add_factor_health, summarize_factor_health
@@ -116,6 +117,7 @@ def build_stock_picks(
         correlation_risk["clusters"],
     )
     portfolio_stability = compute_portfolio_stability(portfolio_result["positions"])
+    backtest = run_backtest(market_data, portfolio_result["positions"])
     universe_hash = build_universe_hash(tradable_universe["ts_code"].astype(str))
     snapshot = create_snapshot(
         trading_date=format_api_date(market_data.trade_date),
@@ -133,6 +135,10 @@ def build_stock_picks(
             "factor_health": factor_health,
             "concentration_risk": concentration_risk,
             "portfolio_stability": portfolio_stability,
+            "backtest": {
+                "metrics": backtest["metrics"],
+                "assumptions": backtest["assumptions"],
+            },
         },
     )
 
@@ -151,6 +157,7 @@ def build_stock_picks(
         "factor_health": factor_health,
         "concentration_risk": concentration_risk,
         "portfolio_stability": portfolio_stability,
+        "backtest": backtest,
         "universe_size": int(len(tradable_universe)),
         "portfolio": portfolio_result["positions"],
         "risk": portfolio_result["risk"],

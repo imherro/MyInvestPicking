@@ -28,6 +28,7 @@ http://localhost:8019
 - Drawdown guard and portfolio risk metrics
 - Market regime detection with dynamic risk budgets
 - Correlation risk, factor health, and portfolio stability metrics
+- Deterministic backtest and execution simulation metrics
 - Project structure for future strategy and risk modules
 
 ## Environment
@@ -58,6 +59,9 @@ position and exposure limits to adapt to trend, range, crash, or high-volatility
 conditions.
 Risk structure fields include `correlation_risk`, `concentration_risk`,
 `factor_health`, and `portfolio_stability`.
+The `backtest` block contains a deterministic daily-rebalanced NAV simulation,
+drawdown curve, and performance metrics using explicit transaction-cost and
+slippage assumptions.
 
 ## Runtime Data
 
