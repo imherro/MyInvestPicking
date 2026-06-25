@@ -11,6 +11,61 @@ GROWTH_TREND_WEIGHTS = {
     "value": 0.08,
 }
 
+GROWTH_INDUSTRY_KEYWORDS = (
+    "半导体",
+    "芯片",
+    "元器件",
+    "电子",
+    "通信",
+    "软件",
+    "IT",
+    "互联网",
+    "人工智能",
+    "AI",
+    "机器人",
+    "自动化",
+    "专用机械",
+    "通用机械",
+    "电气设备",
+    "电池",
+    "光伏",
+    "新能源",
+    "汽车",
+    "航空",
+    "军工",
+    "医疗保健",
+    "生物制药",
+    "创新药",
+    "Tech",
+    "Pharma",
+    "Auto",
+)
+
+SECONDARY_GROWTH_INDUSTRY_KEYWORDS = (
+    "化学制药",
+    "医药",
+    "新材料",
+    "化纤",
+    "矿物制品",
+    "有色",
+    "Consumer",
+)
+
+FINANCIAL_INDUSTRY_KEYWORDS = ("银行", "证券", "保险", "多元金融", "Bank")
+
+LOW_GROWTH_INDUSTRY_KEYWORDS = (
+    "房地产",
+    "煤炭",
+    "石油",
+    "钢铁",
+    "水泥",
+    "建筑",
+    "公路",
+    "港口",
+    "机场",
+    "Energy",
+)
+
 
 def _rank_score(series: pd.Series, higher_is_better: bool = True) -> pd.Series:
     numeric = pd.to_numeric(series, errors="coerce").replace([float("inf"), -float("inf")], pd.NA)
@@ -78,6 +133,7 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
     scored["value"] = sum(value_parts) / len(value_parts) if value_parts else 0.5
     scored["risk"] = _score_column(scored, "volatility_20d", False)
     scored["industry_strength"] = _bounded_column(scored, "industry_relative_strength")
+    scored["growth_industry_profile"] = _growth_industry_profile(scored)
 
     scored["score"] = (
         GROWTH_TREND_WEIGHTS["trend"] * scored["trend"]
@@ -103,16 +159,28 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
         + 0.10 * scored["trend"]
         + 0.10 * scored["industry_strength"]
     ).clip(0, 1)
-    scored["growth_candidate_score"] = (
-        0.45 * scored["growth"]
-        + 0.20 * scored["quality"]
-        + 0.15 * scored["trend"]
-        + 0.10 * scored["industry_strength"]
-        + 0.10 * scored["risk"]
+    raw_growth_candidate = (
+        0.35 * scored["growth"]
+        + 0.20 * scored["trend"]
+        + 0.15 * scored["growth_industry_profile"]
+        + 0.10 * scored["amount_expansion_score"]
+        + 0.10 * scored["quality"]
+        + 0.05 * scored["industry_strength"]
+        + 0.05 * scored["risk"]
     )
-    scored["growth_candidate_score"] = (
-        scored["growth_candidate_score"] * (0.70 + 0.30 * scored["growth_data_quality"])
+    growth_evidence = (
+        0.50 * scored["growth_data_quality"]
+        + 0.30 * scored["growth_industry_profile"]
+        + 0.20 * scored["amount_expansion_score"]
     ).clip(0, 1)
+    scored["growth_candidate_score"] = (
+        raw_growth_candidate * (0.55 + 0.45 * growth_evidence)
+    )
+    financial = _financial_industry_mask(scored)
+    low_growth_data = scored["growth_data_quality"] < 0.50
+    scored.loc[financial & low_growth_data, "growth_candidate_score"] *= 0.35
+    scored.loc[financial & ~low_growth_data, "growth_candidate_score"] *= 0.75
+    scored["growth_candidate_score"] = scored["growth_candidate_score"].clip(0, 1)
     scored["trend_candidate_score"] = (
         0.50 * scored["trend"]
         + 0.20 * scored["industry_strength"]
@@ -154,6 +222,32 @@ def _bounded_column(frame: pd.DataFrame, column: str) -> pd.Series:
     if column not in frame.columns:
         return pd.Series(0.5, index=frame.index, dtype="float64")
     return pd.to_numeric(frame[column], errors="coerce").fillna(0.5).clip(0, 1)
+
+
+def _growth_industry_profile(scored: pd.DataFrame) -> pd.Series:
+    if "industry" not in scored.columns:
+        return pd.Series(0.45, index=scored.index, dtype="float64")
+
+    industry = scored["industry"].fillna("").astype(str)
+    profile = pd.Series(0.45, index=scored.index, dtype="float64")
+    profile.loc[_contains_any(industry, LOW_GROWTH_INDUSTRY_KEYWORDS)] = 0.18
+    profile.loc[_contains_any(industry, SECONDARY_GROWTH_INDUSTRY_KEYWORDS)] = 0.68
+    profile.loc[_contains_any(industry, GROWTH_INDUSTRY_KEYWORDS)] = 0.92
+    profile.loc[_financial_industry_mask(scored)] = 0.05
+    return profile.clip(0, 1)
+
+
+def _financial_industry_mask(scored: pd.DataFrame) -> pd.Series:
+    if "industry" not in scored.columns:
+        return pd.Series(False, index=scored.index)
+    return _contains_any(scored["industry"].fillna("").astype(str), FINANCIAL_INDUSTRY_KEYWORDS)
+
+
+def _contains_any(series: pd.Series, keywords: tuple[str, ...]) -> pd.Series:
+    mask = pd.Series(False, index=series.index)
+    for keyword in keywords:
+        mask = mask | series.str.contains(keyword, case=False, regex=False, na=False)
+    return mask
 
 
 def _health_multiplier(scored: pd.DataFrame) -> pd.Series:

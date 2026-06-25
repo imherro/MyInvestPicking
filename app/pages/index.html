@@ -856,9 +856,9 @@
         }
         if (style === "growth") {
           if (Number(metrics.growth_data_quality ?? factors.growth_data_quality ?? 0) < 0.5) {
-            return `财报覆盖 ${formatValue(metrics.growth_data_quality ?? factors.growth_data_quality)} / 成长 ${formatValue(factors.growth)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
+            return `成长行业 ${formatValue(factors.growth_industry_profile)} / 财报覆盖 ${formatValue(metrics.growth_data_quality ?? factors.growth_data_quality)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
           }
-          return `成长 ${formatValue(factors.growth)} / 营收 ${formatValue(metrics.revenue_growth_yoy)} / ROE改善 ${formatValue(metrics.roe_improvement)}`;
+          return `成长 ${formatValue(factors.growth)} / 成长行业 ${formatValue(factors.growth_industry_profile)} / 营收 ${formatValue(metrics.revenue_growth_yoy)}`;
         }
         return `趋势 ${formatValue(factors.trend)} / 60日 ${formatValue(metrics.momentum_60d)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
       }
@@ -908,7 +908,7 @@
         const metrics = signal.metrics || {};
         return [
           `最终分 ${formatValue(signal.final_score)} | 基础分 ${formatValue(signal.score)}`,
-          `趋势 ${formatValue(factors.trend)} | 成长 ${formatValue(factors.growth)} | 行业强弱 ${formatValue(factors.industry_strength)}`,
+          `趋势 ${formatValue(factors.trend)} | 成长 ${formatValue(factors.growth)} | 成长行业 ${formatValue(factors.growth_industry_profile)} | 行业强弱 ${formatValue(factors.industry_strength)}`,
           `成长数据覆盖 ${formatValue(metrics.growth_data_quality ?? factors.growth_data_quality)}`,
           `20日动量 ${formatValue(factors.momentum)} | 质量 ${formatValue(factors.quality)}`,
           `估值 ${formatValue(factors.value)} | 风险 ${formatValue(factors.risk)}`,

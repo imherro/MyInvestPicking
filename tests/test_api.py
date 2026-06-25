@@ -3,6 +3,7 @@ import warnings
 
 os.environ["MYINVESTPICKING_FORCE_MOCK"] = "1"
 
+import pandas as pd
 from starlette.exceptions import StarletteDeprecationWarning
 
 warnings.filterwarnings(
@@ -14,12 +15,53 @@ warnings.filterwarnings(
 from fastapi.testclient import TestClient
 
 from app.main import app
+from engine.scoring import score_stocks
 from engine.signal_gate import build_signal_decision
 from engine.tradability_engine import assess_tradability
 from risk.portfolio_builder import build_portfolio
 
 
 client = TestClient(app)
+
+
+def test_growth_candidate_penalizes_financials_when_growth_data_missing() -> None:
+    frame = [
+        {
+            "ts_code": "600001.SH",
+            "industry": "银行",
+            "momentum_20d": 0.08,
+            "momentum_60d": 0.18,
+            "momentum_120d": 0.28,
+            "amount_expansion_20d": 2.0,
+            "high_120_distance": -0.01,
+            "volatility_20d": 0.02,
+            "growth_data_quality": 0.0,
+            "industry_relative_strength": 0.9,
+            "pe": 6,
+            "pb": 0.8,
+        },
+        {
+            "ts_code": "688001.SH",
+            "industry": "半导体",
+            "momentum_20d": 0.07,
+            "momentum_60d": 0.16,
+            "momentum_120d": 0.25,
+            "amount_expansion_20d": 1.8,
+            "high_120_distance": -0.02,
+            "volatility_20d": 0.03,
+            "growth_data_quality": 0.0,
+            "industry_relative_strength": 0.8,
+            "pe": 35,
+            "pb": 4.2,
+        },
+    ]
+
+    scored = score_stocks(pd.DataFrame(frame))
+    bank = scored.loc[scored["ts_code"] == "600001.SH"].iloc[0]
+    semiconductor = scored.loc[scored["ts_code"] == "688001.SH"].iloc[0]
+
+    assert semiconductor["growth_industry_profile"] > bank["growth_industry_profile"]
+    assert semiconductor["growth_candidate_score"] > bank["growth_candidate_score"]
 
 
 def test_index_page() -> None:
@@ -124,6 +166,7 @@ def test_picks_endpoint_returns_structured_results() -> None:
         "value",
         "risk",
         "industry_strength",
+        "growth_industry_profile",
     } <= set(first["factors"])
     assert {"revenue_growth_yoy", "net_profit_growth_yoy", "ocf_to_profit"} <= set(
         first["metrics"]
@@ -135,6 +178,7 @@ def test_picks_endpoint_returns_structured_results() -> None:
         "high_120_distance",
         "roe_improvement",
         "growth_data_quality",
+        "growth_industry_profile",
         "industry_relative_strength",
     } <= set(first["metrics"])
     assert {"value", "growth", "trend", "composite"} <= set(first["candidate_scores"])
