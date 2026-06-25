@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from engine.scoring import score_stocks
 from engine.signal_gate import build_signal_decision
+from engine.theme_engine import add_growth_theme_profiles
 from engine.tradability_engine import assess_tradability
 from risk.portfolio_builder import build_portfolio
 
@@ -62,6 +63,77 @@ def test_growth_candidate_penalizes_financials_when_growth_data_missing() -> Non
 
     assert semiconductor["growth_industry_profile"] > bank["growth_industry_profile"]
     assert semiconductor["growth_candidate_score"] > bank["growth_candidate_score"]
+
+
+def test_growth_theme_profile_promotes_ai_theme_over_financials() -> None:
+    frame = pd.DataFrame(
+        [
+            {
+                "ts_code": "600001.SH",
+                "industry": "银行",
+                "momentum_20d": 0.08,
+                "momentum_60d": 0.18,
+                "momentum_120d": 0.28,
+                "amount_expansion_20d": 2.0,
+                "high_120_distance": -0.01,
+                "volatility_20d": 0.02,
+                "growth_data_quality": 0.0,
+                "growth_theme_profile": 0.25,
+                "industry_relative_strength": 0.9,
+                "pe": 6,
+                "pb": 0.8,
+            },
+            {
+                "ts_code": "688001.SH",
+                "industry": "通信设备",
+                "momentum_20d": 0.07,
+                "momentum_60d": 0.16,
+                "momentum_120d": 0.25,
+                "amount_expansion_20d": 1.8,
+                "high_120_distance": -0.02,
+                "volatility_20d": 0.03,
+                "growth_data_quality": 0.0,
+                "growth_theme_profile": 0.98,
+                "industry_relative_strength": 0.8,
+                "pe": 35,
+                "pb": 4.2,
+            },
+        ]
+    )
+
+    scored = score_stocks(frame)
+    bank = scored.loc[scored["ts_code"] == "600001.SH"].iloc[0]
+    ai_stock = scored.loc[scored["ts_code"] == "688001.SH"].iloc[0]
+
+    assert ai_stock["growth_theme_profile"] > bank["growth_theme_profile"]
+    assert ai_stock["growth_candidate_score"] > bank["growth_candidate_score"]
+
+
+def test_growth_theme_profiles_merge_external_theme_membership() -> None:
+    factors = pd.DataFrame(
+        [
+            {"ts_code": "688001.SH", "name": "测试科技", "industry": "通信设备"},
+            {"ts_code": "600001.SH", "name": "测试银行", "industry": "银行"},
+        ]
+    )
+    membership = pd.DataFrame(
+        [
+            {
+                "ts_code": "688001.SH",
+                "theme_name": "人工智能算力",
+                "theme_group": "AI算力",
+                "theme_source": "tushare_ths",
+            }
+        ]
+    )
+
+    enriched = add_growth_theme_profiles(factors, membership)
+    ai_stock = enriched.loc[enriched["ts_code"] == "688001.SH"].iloc[0]
+    bank = enriched.loc[enriched["ts_code"] == "600001.SH"].iloc[0]
+
+    assert ai_stock["theme_tags"] == "AI算力"
+    assert ai_stock["theme_source"] == "tushare"
+    assert ai_stock["growth_theme_profile"] > bank["growth_theme_profile"]
 
 
 def test_index_page() -> None:
@@ -167,6 +239,7 @@ def test_picks_endpoint_returns_structured_results() -> None:
         "risk",
         "industry_strength",
         "growth_industry_profile",
+        "growth_theme_profile",
     } <= set(first["factors"])
     assert {"revenue_growth_yoy", "net_profit_growth_yoy", "ocf_to_profit"} <= set(
         first["metrics"]
@@ -179,6 +252,9 @@ def test_picks_endpoint_returns_structured_results() -> None:
         "roe_improvement",
         "growth_data_quality",
         "growth_industry_profile",
+        "growth_theme_profile",
+        "theme_tags",
+        "theme_source",
         "industry_relative_strength",
     } <= set(first["metrics"])
     assert {"value", "growth", "trend", "composite"} <= set(first["candidate_scores"])

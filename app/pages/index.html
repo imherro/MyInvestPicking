@@ -855,10 +855,11 @@
           return `估值 ${formatValue(factors.value)} / 行业 ${formatValue(factors.industry_strength)} / 质量 ${formatValue(factors.quality)}`;
         }
         if (style === "growth") {
+          const theme = themeText(metrics);
           if (Number(metrics.growth_data_quality ?? factors.growth_data_quality ?? 0) < 0.5) {
-            return `成长行业 ${formatValue(factors.growth_industry_profile)} / 财报覆盖 ${formatValue(metrics.growth_data_quality ?? factors.growth_data_quality)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
+            return `题材 ${theme} / 主题 ${formatValue(factors.growth_theme_profile)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
           }
-          return `成长 ${formatValue(factors.growth)} / 成长行业 ${formatValue(factors.growth_industry_profile)} / 营收 ${formatValue(metrics.revenue_growth_yoy)}`;
+          return `题材 ${theme} / 成长 ${formatValue(factors.growth)} / 营收 ${formatValue(metrics.revenue_growth_yoy)}`;
         }
         return `趋势 ${formatValue(factors.trend)} / 60日 ${formatValue(metrics.momentum_60d)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
       }
@@ -893,7 +894,8 @@
       }
 
       function nameDetail(signal) {
-        return `${signal.name || "-"}\n${signal.code}\n行业：${signal.industry || "-"}`;
+        const metrics = signal.metrics || {};
+        return `${signal.name || "-"}\n${signal.code}\n行业：${signal.industry || "-"}\n题材：${themeText(metrics)}`;
       }
 
       function weightDetail(signal) {
@@ -908,7 +910,8 @@
         const metrics = signal.metrics || {};
         return [
           `最终分 ${formatValue(signal.final_score)} | 基础分 ${formatValue(signal.score)}`,
-          `趋势 ${formatValue(factors.trend)} | 成长 ${formatValue(factors.growth)} | 成长行业 ${formatValue(factors.growth_industry_profile)} | 行业强弱 ${formatValue(factors.industry_strength)}`,
+          `趋势 ${formatValue(factors.trend)} | 成长 ${formatValue(factors.growth)} | 成长主题 ${formatValue(factors.growth_theme_profile)} | 成长行业 ${formatValue(factors.growth_industry_profile)}`,
+          `题材 ${themeText(metrics)} | 来源 ${metrics.theme_source || "none"}`,
           `成长数据覆盖 ${formatValue(metrics.growth_data_quality ?? factors.growth_data_quality)}`,
           `20日动量 ${formatValue(factors.momentum)} | 质量 ${formatValue(factors.quality)}`,
           `估值 ${formatValue(factors.value)} | 风险 ${formatValue(factors.risk)}`,
@@ -950,7 +953,13 @@
       }
 
       function industryDetail(signal) {
-        return `${signal.industry || "-"}\n${signal.code} ${signal.name || ""}`;
+        return `${signal.industry || "-"}\n${signal.code} ${signal.name || ""}\n题材：${themeText(signal.metrics || {})}`;
+      }
+
+      function themeText(metrics) {
+        const tags = String(metrics.theme_tags || "").split("|").filter(Boolean);
+        if (!tags.length) return "-";
+        return tags.slice(0, 2).join(" / ");
       }
 
       function renderGateSummary(gate) {

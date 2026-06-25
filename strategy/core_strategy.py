@@ -50,6 +50,7 @@ def _to_pick(
         "risk": _round_float(row.get("risk")),
         "industry_strength": _round_float(row.get("industry_strength")),
         "growth_industry_profile": _round_float(row.get("growth_industry_profile")),
+        "growth_theme_profile": _round_float(row.get("growth_theme_profile")),
     }
     candidate_scores = {
         "value": _round_float(row.get("value_candidate_score")),
@@ -97,6 +98,9 @@ def _to_pick(
             "roe_improvement": _round_float(row.get("roe_improvement")),
             "growth_data_quality": _round_float(row.get("growth_data_quality")),
             "growth_industry_profile": _round_float(row.get("growth_industry_profile")),
+            "growth_theme_profile": _round_float(row.get("growth_theme_profile")),
+            "theme_tags": row.get("theme_tags") or "",
+            "theme_source": row.get("theme_source") or "none",
             "revenue_growth_yoy": _round_float(row.get("revenue_growth_yoy")),
             "net_profit_growth_yoy": _round_float(row.get("net_profit_growth_yoy")),
             "ocf_to_profit": _round_float(row.get("ocf_to_profit")),
@@ -123,6 +127,7 @@ def _build_reason(factors: dict[str, float | None]) -> list[str]:
         "risk": "Risk control",
         "industry_strength": "Industry strength",
         "growth_industry_profile": "Growth industry fit",
+        "growth_theme_profile": "Growth theme fit",
     }
     for key, label in labels.items():
         value = factors.get(key)
@@ -268,8 +273,15 @@ def _build_candidate_pools(scored: pd.DataFrame, top_n: int) -> dict[str, list[d
         sort_columns = [score_column, "industry_strength", "final_score", "ts_code"]
         sort_orders = [False, False, False, True]
         if name == "growth":
-            sort_columns = [score_column, "growth_industry_profile", "growth_data_quality", "final_score", "ts_code"]
-            sort_orders = [False, False, False, False, True]
+            sort_columns = [
+                score_column,
+                "growth_theme_profile",
+                "growth_industry_profile",
+                "growth_data_quality",
+                "final_score",
+                "ts_code",
+            ]
+            sort_orders = [False, False, False, False, False, True]
         ranked = scored.sort_values(sort_columns, ascending=sort_orders).head(limit)
         result[name] = [
             _to_pick(row, candidate_style=style, candidate_score_column=score_column)
@@ -287,7 +299,8 @@ def _score_profile() -> dict[str, Any]:
             "risk": "低波动风险权重从 0.20 降至 0.10",
             "trend": "趋势使用 20/60/120 日强度、创新高距离和成交额放大",
             "growth": "成长使用营收增速、利润增速、ROE、ROE 改善和成交额放大",
-            "growth_industry_profile": "成长候选增加行业画像，优先半导体、AI、电子、通信、高端制造等方向；金融行业在成长数据缺失时降权",
+            "growth_theme_profile": "成长候选增加题材画像，优先 AI算力、芯片半导体、机器人、高端制造、新能源智能车等方向",
+            "growth_industry_profile": "成长候选保留行业画像，金融行业在成长数据缺失时降权",
             "industry_strength": "行业相对强弱进入总分，降低弱势老行业仅靠便宜估值反复霸榜的概率",
         },
     }

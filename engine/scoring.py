@@ -134,6 +134,7 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
     scored["risk"] = _score_column(scored, "volatility_20d", False)
     scored["industry_strength"] = _bounded_column(scored, "industry_relative_strength")
     scored["growth_industry_profile"] = _growth_industry_profile(scored)
+    scored["growth_theme_profile"] = _bounded_column(scored, "growth_theme_profile")
 
     scored["score"] = (
         GROWTH_TREND_WEIGHTS["trend"] * scored["trend"]
@@ -160,18 +161,20 @@ def score_stocks(factors: pd.DataFrame, regime_state: str | None = None) -> pd.D
         + 0.10 * scored["industry_strength"]
     ).clip(0, 1)
     raw_growth_candidate = (
-        0.35 * scored["growth"]
+        0.30 * scored["growth"]
         + 0.20 * scored["trend"]
-        + 0.15 * scored["growth_industry_profile"]
+        + 0.20 * scored["growth_theme_profile"]
+        + 0.10 * scored["growth_industry_profile"]
         + 0.10 * scored["amount_expansion_score"]
-        + 0.10 * scored["quality"]
-        + 0.05 * scored["industry_strength"]
-        + 0.05 * scored["risk"]
+        + 0.05 * scored["quality"]
+        + 0.03 * scored["industry_strength"]
+        + 0.02 * scored["risk"]
     )
     growth_evidence = (
-        0.50 * scored["growth_data_quality"]
-        + 0.30 * scored["growth_industry_profile"]
-        + 0.20 * scored["amount_expansion_score"]
+        0.40 * scored["growth_data_quality"]
+        + 0.35 * scored["growth_theme_profile"]
+        + 0.15 * scored["growth_industry_profile"]
+        + 0.10 * scored["amount_expansion_score"]
     ).clip(0, 1)
     scored["growth_candidate_score"] = (
         raw_growth_candidate * (0.55 + 0.45 * growth_evidence)

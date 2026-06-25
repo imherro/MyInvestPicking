@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from engine.data_loader import MarketData
+from engine.theme_engine import add_growth_theme_profiles
 
 
 def compute_factors(market_data: MarketData) -> pd.DataFrame:
@@ -175,6 +176,7 @@ def compute_factors(market_data: MarketData) -> pd.DataFrame:
     factors["growth_data_quality"] = (
         factors[growth_fields].notna().mean(axis=1) if growth_fields else 0.0
     )
+    factors = add_growth_theme_profiles(factors, market_data.theme_membership)
 
     return _add_industry_strength(factors)
 

@@ -12,6 +12,7 @@ import pandas as pd
 from config.settings import FORCE_MOCK_DATA, MOCK_STOCK_COUNT, TUSHARE_TOKEN
 from data.cache_manager import CacheManager
 from data.trade_calendar import format_api_date, get_latest_trading_date, normalize_trade_date
+from engine.theme_engine import TUSHARE_THEME_MATCH_KEYWORDS, classify_theme_name
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class MarketData:
     daily: pd.DataFrame
     daily_basic: pd.DataFrame
     financial_indicator: pd.DataFrame
+    theme_membership: pd.DataFrame
     mock_mode: bool
     source: str
     data_version: str
@@ -130,6 +132,12 @@ class TushareDataLoader:
                 self._recent_report_periods(latest_trade_date, count=2),
             ),
         )
+        theme_membership = self._cached_dataframe(
+            "theme",
+            "growth_theme_membership_v1",
+            lambda: self._load_growth_theme_membership(pro),
+            max_age_seconds=7 * 24 * 60 * 60,
+        )
 
         return MarketData(
             trade_date=latest_trade_date,
@@ -137,10 +145,16 @@ class TushareDataLoader:
             daily=daily,
             daily_basic=daily_basic,
             financial_indicator=financial_indicator,
+            theme_membership=theme_membership,
             mock_mode=False,
             source="tushare",
             data_version=self._data_version(
-                "tushare", stock_basic, daily, daily_basic, financial_indicator
+                "tushare",
+                stock_basic,
+                daily,
+                daily_basic,
+                financial_indicator,
+                theme_membership,
             ),
         )
 
@@ -247,6 +261,7 @@ class TushareDataLoader:
         daily = pd.DataFrame(daily_rows)
         daily_basic = pd.DataFrame(basic_rows)
         financial_indicator = pd.DataFrame(financial_rows)
+        theme_membership = self._build_mock_theme_membership(stock_basic)
 
         return MarketData(
             trade_date=dates[-1].strftime("%Y%m%d"),
@@ -254,10 +269,16 @@ class TushareDataLoader:
             daily=daily,
             daily_basic=daily_basic,
             financial_indicator=financial_indicator,
+            theme_membership=theme_membership,
             mock_mode=True,
             source="mock",
             data_version=self._data_version(
-                "mock", stock_basic, daily, daily_basic, financial_indicator
+                "mock",
+                stock_basic,
+                daily,
+                daily_basic,
+                financial_indicator,
+                theme_membership,
             ),
         )
 
@@ -368,6 +389,90 @@ class TushareDataLoader:
                 ]
             )
         return pd.concat(frames, ignore_index=True)
+
+    def _load_growth_theme_membership(self, pro) -> pd.DataFrame:
+        indexes = self._load_tushare_theme_index(pro)
+        if indexes.empty:
+            return pd.DataFrame(columns=["ts_code", "theme_name", "theme_group", "theme_source"])
+
+        indexes["theme_group"] = indexes["theme_name"].map(classify_theme_name)
+        indexes = indexes.dropna(subset=["theme_group"])
+        if indexes.empty:
+            return pd.DataFrame(columns=["ts_code", "theme_name", "theme_group", "theme_source"])
+
+        frames = []
+        for _, theme in indexes.head(80).iterrows():
+            try:
+                members = pro.ths_member(
+                    ts_code=theme["theme_code"],
+                    fields="ts_code,con_code,con_name",
+                )
+            except Exception:
+                continue
+            if members is None or members.empty:
+                continue
+            code_column = "con_code" if "con_code" in members.columns else "ts_code"
+            if code_column not in members.columns:
+                continue
+            frames.append(
+                pd.DataFrame(
+                    {
+                        "ts_code": members[code_column].astype(str),
+                        "theme_name": str(theme["theme_name"]),
+                        "theme_group": str(theme["theme_group"]),
+                        "theme_source": "tushare_ths",
+                    }
+                )
+            )
+        if not frames:
+            return pd.DataFrame(columns=["ts_code", "theme_name", "theme_group", "theme_source"])
+        return pd.concat(frames, ignore_index=True).drop_duplicates()
+
+    @staticmethod
+    def _load_tushare_theme_index(pro) -> pd.DataFrame:
+        attempts = [
+            lambda: pro.ths_index(exchange="A", type="N", fields="ts_code,name"),
+            lambda: pro.ths_index(type="N", fields="ts_code,name"),
+            lambda: pro.ths_index(fields="ts_code,name"),
+        ]
+        for attempt in attempts:
+            try:
+                indexes = attempt()
+            except Exception:
+                continue
+            if indexes is None or indexes.empty or not {"ts_code", "name"} <= set(indexes.columns):
+                continue
+            normalized = indexes.rename(columns={"ts_code": "theme_code", "name": "theme_name"})
+            match_text = normalized["theme_name"].fillna("").astype(str)
+            matched = pd.Series(False, index=normalized.index)
+            for keyword in TUSHARE_THEME_MATCH_KEYWORDS:
+                matched = matched | match_text.str.contains(keyword, case=False, regex=False, na=False)
+            return normalized.loc[matched, ["theme_code", "theme_name"]].drop_duplicates()
+        return pd.DataFrame(columns=["theme_code", "theme_name"])
+
+    @staticmethod
+    def _build_mock_theme_membership(stock_basic: pd.DataFrame) -> pd.DataFrame:
+        if stock_basic.empty:
+            return pd.DataFrame(columns=["ts_code", "theme_name", "theme_group", "theme_source"])
+        rows = []
+        theme_by_industry = {
+            "Tech": ("AI算力", "AI算力"),
+            "Auto": ("新能源智能车", "新能源智能车"),
+            "Pharma": ("创新药医疗", "创新药医疗"),
+        }
+        for _, stock in stock_basic.iterrows():
+            theme = theme_by_industry.get(str(stock.get("industry") or ""))
+            if theme is None:
+                continue
+            rows.append(
+                {
+                    "ts_code": stock["ts_code"],
+                    "theme_name": theme[0],
+                    "theme_group": theme[1],
+                    "theme_source": "mock",
+                }
+            )
+        return pd.DataFrame(rows, columns=["ts_code", "theme_name", "theme_group", "theme_source"])
 
     @staticmethod
     def _latest_report_period(trade_date: str) -> str:
