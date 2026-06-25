@@ -138,7 +138,7 @@
       }
 
       .candidate-table {
-        min-width: 560px;
+        min-width: 0;
       }
 
       .signal-table {
@@ -164,9 +164,30 @@
         font-size: 14px;
       }
 
+      .candidate-table th,
+      .candidate-table td {
+        padding: 8px 5px;
+        font-size: 12px;
+      }
+
+      .candidate-table th {
+        font-size: 11px;
+      }
+
       .compact-cell {
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+
+      .stock-link {
+        color: inherit;
+        text-decoration: none;
+        border-bottom: 1px dotted rgba(15, 118, 110, 0.45);
+      }
+
+      .stock-link:hover {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
       }
 
       .score-cell {
@@ -265,8 +286,8 @@
       .candidate-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 18px;
-        padding: 18px 20px 20px;
+        gap: 12px;
+        padding: 14px 16px 18px;
       }
 
       .candidate-group {
@@ -278,9 +299,9 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         color: var(--text);
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 750;
       }
 
@@ -416,19 +437,22 @@
 
       .candidate-table td:nth-child(1),
       .candidate-table th:nth-child(1) {
-        width: 72px;
+        width: 32px;
       }
 
       .candidate-table td:nth-child(2),
       .candidate-table th:nth-child(2) {
-        width: 112px;
+        width: 76px;
+      }
+
+      .candidate-table td:nth-child(3),
+      .candidate-table th:nth-child(3) {
+        width: 70px;
       }
 
       .candidate-table td:nth-child(4),
-      .candidate-table th:nth-child(4),
-      .candidate-table td:nth-child(5),
-      .candidate-table th:nth-child(5) {
-        width: 96px;
+      .candidate-table th:nth-child(4) {
+        width: 58px;
       }
 
       .empty,
@@ -700,8 +724,8 @@
             .map(
               (pick) => `
                 <tr>
-                  <td class="compact-cell" title="${escapeAttr(codeDetail(pick))}">${escapeHtml(pick.code)}</td>
-                  <td class="compact-cell" title="${escapeAttr(nameDetail(pick))}">${escapeHtml(pick.name || "-")}</td>
+                  <td class="compact-cell" title="${escapeAttr(codeDetail(pick))}">${stockCodeLink(pick)}</td>
+                  <td class="compact-cell" title="${escapeAttr(nameDetail(pick))}">${stockNameLink(pick)}</td>
                   <td title="${escapeAttr(decisionDetail(pick))}"><span class="signal ${stateClass(pick.operation_state)}">${displayOperationState(pick.operation_state)}</span></td>
                   <td title="${escapeAttr(weightDetail(pick))}">${formatValue(pick.position_size ?? pick.weight)}</td>
                   <td class="score-cell" title="${escapeAttr(scoreDetail(pick))}">
@@ -814,8 +838,8 @@
             return `
               <tr>
                 <td>${index + 1}</td>
-                <td class="compact-cell" title="${escapeAttr(codeDetail(candidate))}">${escapeHtml(candidate.code)}</td>
-                <td class="compact-cell" title="${escapeAttr(nameDetail(candidate))}">${escapeHtml(candidate.name || "-")}</td>
+                <td class="compact-cell" title="${escapeAttr(codeDetail(candidate))}">${stockCodeLink(candidate)}</td>
+                <td class="compact-cell" title="${escapeAttr(nameDetail(candidate))}">${stockNameLink(candidate)}</td>
                 <td class="score-cell" title="${escapeAttr(detail)}"><strong>${formatValue(candidate.candidate_score ?? candidate.score)}</strong></td>
                 <td class="reason" title="${escapeAttr(detail)}">${escapeHtml(candidateValueText(candidate, style))}</td>
               </tr>
@@ -837,6 +861,35 @@
           return `成长 ${formatValue(factors.growth)} / 营收 ${formatValue(metrics.revenue_growth_yoy)} / ROE改善 ${formatValue(metrics.roe_improvement)}`;
         }
         return `趋势 ${formatValue(factors.trend)} / 60日 ${formatValue(metrics.momentum_60d)} / 放量 ${formatValue(metrics.amount_expansion_20d)}`;
+      }
+
+      function stockCodeLink(stock) {
+        return `<a class="stock-link" href="${escapeAttr(xueqiuUrl(stock.code))}" target="_blank" rel="noopener noreferrer">${escapeHtml(stock.code || "-")}</a>`;
+      }
+
+      function stockNameLink(stock) {
+        return `<a class="stock-link" href="${escapeAttr(stockResearchUrl(stock.code))}" target="_blank" rel="noopener noreferrer">${escapeHtml(stock.name || "-")}</a>`;
+      }
+
+      function xueqiuUrl(code) {
+        const parts = stockCodeParts(code);
+        return parts ? `https://xueqiu.com/S/${parts.exchange}${parts.symbol}` : "https://xueqiu.com/";
+      }
+
+      function stockResearchUrl(code) {
+        const normalized = normalizedStockCode(code);
+        return `https://stock.okbbc.com/research?stock=${encodeURIComponent(normalized)}`;
+      }
+
+      function stockCodeParts(code) {
+        const normalized = normalizedStockCode(code);
+        const parts = normalized.split(".");
+        if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+        return { symbol: parts[0], exchange: parts[1] };
+      }
+
+      function normalizedStockCode(code) {
+        return String(code || "").trim().toUpperCase();
       }
 
       function nameDetail(signal) {

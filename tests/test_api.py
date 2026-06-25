@@ -39,6 +39,8 @@ def test_index_page() -> None:
     assert "拦截面板" in response.text
     assert "影子组合" in response.text
     assert "<th>仓位</th>" in response.text
+    assert "https://xueqiu.com/S/" in response.text
+    assert "https://stock.okbbc.com/research?stock=" in response.text
 
 
 def test_picks_endpoint_returns_structured_results() -> None:
