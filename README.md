@@ -19,7 +19,9 @@ http://localhost:8019
 ## Current Scope
 
 - Web UI at `/`
+- Unified API catalog at `/api`
 - Stock picks API at `/api/picks`
+- Shadow portfolio history API at `/api/shadow-portfolio`
 - Tushare data loading with automatic mock fallback
 - Trading-day normalization and local data caching
 - Reproducible snapshot metadata for each stock-picking run
@@ -45,9 +47,23 @@ API, and tests still run.
 
 ## API
 
+Start from the read-only catalog:
+
+```text
+GET /api
+```
+
+The catalog returns system metadata, `base_url`, documentation links, recommended
+entry points, safety boundaries, functional endpoint groups, and
+`total_endpoints`. It is intentionally descriptive only: it does not trigger
+stock-picking recomputation, backtests, local cache refreshes, snapshots,
+trading, or GitHub synchronization.
+
 ```text
 GET /api/picks
 GET /api/picks?date=2026-06-24&top_n=20
+GET /api/picks?shadow_days=0
+GET /api/shadow-portfolio?shadow_days=5
 ```
 
 Response fields include `trading_date`, `data_version`, `factor_version`,
@@ -65,6 +81,28 @@ Risk structure fields include `correlation_risk`, `concentration_risk`,
 The `backtest` block contains a deterministic daily-rebalanced NAV simulation,
 drawdown curve, and performance metrics using explicit transaction-cost and
 slippage assumptions.
+
+`GET /api/shadow-portfolio` returns the shadow portfolio summary, NAV curve,
+rebalance history, and simulation metrics for recent daily model picks.
+
+Documentation is also available at:
+
+```text
+GET /docs
+GET /redoc
+GET /openapi.json
+```
+
+Safety boundaries:
+
+- `/api` is catalog-only and does not recompute or write runtime data.
+- Analysis endpoints do not place orders, connect to broker accounts, or sync
+  external systems.
+- Position and exposure outputs remain ratio-only.
+- Analysis endpoints may refresh local Tushare cache files or runtime snapshots;
+  those files remain under ignored runtime directories.
+- The catalog does not expose `.env`, `TUSHARE_TOKEN`, local cache paths, or
+  machine-specific absolute paths.
 
 ## Runtime Data
 

@@ -152,9 +152,46 @@ def test_index_page() -> None:
     assert "信号榜" in response.text
     assert "拦截面板" in response.text
     assert "影子组合" in response.text
+    assert "接口说明" in response.text
+    assert 'id="api-status"' in response.text
     assert "<th>仓位</th>" in response.text
     assert "https://xueqiu.com/S/" in response.text
     assert "https://stock.okbbc.com/research?stock=" in response.text
+
+
+def test_api_catalog_returns_public_endpoint_directory() -> None:
+    response = client.get("/api")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["system"]["name"] == "MyInvestPicking"
+    assert payload["system"]["version"]
+    assert payload["base_url"] == "http://testserver"
+    assert payload["docs"] == {
+        "swagger": "/docs",
+        "redoc": "/redoc",
+        "openapi": "/openapi.json",
+    }
+    assert payload["recommended_entrypoints"]
+    assert payload["safety"]["catalog"].startswith("GET /api")
+    assert "交易" in payload["safety"]["trading"] or "交易" in payload["safety"]["catalog"]
+    assert payload["groups"]
+
+    endpoints = [
+        endpoint
+        for group in payload["groups"]
+        for endpoint in group["endpoints"]
+    ]
+    unique_paths = {(endpoint["method"], endpoint["path"]) for endpoint in endpoints}
+    assert payload["total_endpoints"] == len(unique_paths)
+    assert ("GET", "/api") in unique_paths
+    assert ("GET", "/api/picks") in unique_paths
+    assert ("GET", "/api/shadow-portfolio") in unique_paths
+    catalog = next(endpoint for endpoint in endpoints if endpoint["path"] == "/api")
+    assert catalog["read_only"] is True
+    assert {"method", "path", "purpose", "parameters", "returns", "read_only"} <= set(
+        catalog
+    )
 
 
 def test_picks_endpoint_returns_structured_results() -> None:

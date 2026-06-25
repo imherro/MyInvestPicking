@@ -366,6 +366,67 @@
         overflow: auto;
       }
 
+      .api-overview {
+        display: grid;
+        grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+        gap: 18px;
+        padding: 18px 20px 20px;
+      }
+
+      .api-summary,
+      .api-list,
+      .api-boundary {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+      }
+
+      .api-list h3,
+      .api-boundary h3 {
+        margin: 0 0 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 750;
+        text-transform: uppercase;
+      }
+
+      .api-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 34px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfe;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .api-row strong {
+        flex: 0 0 auto;
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .api-row span {
+        min-width: 0;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+        text-align: right;
+        white-space: normal;
+      }
+
+      .api-row a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .api-boundary {
+        grid-column: 1 / -1;
+      }
+
       .history-item {
         display: grid;
         grid-template-columns: 88px 1fr auto;
@@ -478,6 +539,11 @@
         }
 
         .shadow-grid {
+          grid-template-columns: 1fr;
+          padding: 14px 14px 16px;
+        }
+
+        .api-overview {
           grid-template-columns: 1fr;
           padding: 14px 14px 16px;
         }
@@ -644,6 +710,36 @@
             </div>
           </div>
         </section>
+
+        <section class="panel" aria-labelledby="api-title">
+          <div class="toolbar">
+            <h2 id="api-title">接口说明</h2>
+            <div class="status" id="api-status">正在加载 /api</div>
+          </div>
+          <div class="api-overview">
+            <div class="api-summary" id="api-summary">
+              <div class="empty">暂无接口目录。</div>
+            </div>
+            <div class="api-list">
+              <h3>推荐入口</h3>
+              <div id="api-entrypoints">
+                <div class="empty">暂无推荐入口。</div>
+              </div>
+            </div>
+            <div class="api-list">
+              <h3>接口分组</h3>
+              <div id="api-groups">
+                <div class="empty">暂无接口分组。</div>
+              </div>
+            </div>
+            <div class="api-boundary">
+              <h3>安全边界</h3>
+              <div id="api-safety">
+                <div class="empty">暂无安全边界。</div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
     <div data-myinvest-footer></div>
@@ -665,11 +761,18 @@
       const shadowSummary = document.querySelector("#shadow-summary");
       const shadowChart = document.querySelector("#shadow-chart");
       const rebalanceHistory = document.querySelector("#rebalance-history");
+      const apiStatus = document.querySelector("#api-status");
+      const apiSummary = document.querySelector("#api-summary");
+      const apiEntrypoints = document.querySelector("#api-entrypoints");
+      const apiGroups = document.querySelector("#api-groups");
+      const apiSafety = document.querySelector("#api-safety");
 
       const formatValue = (value) => {
         if (value === null || value === undefined) return "-";
         return Number(value).toFixed(4);
       };
+
+      loadApiCatalog();
 
       fetch("/api/picks?shadow_days=0")
         .then((response) => response.json())
@@ -1049,6 +1152,74 @@
         ].join("");
         renderNavChart(shadow.equity_curve || []);
         renderRebalanceHistory(shadow.rebalance_history || []);
+      }
+
+      function loadApiCatalog() {
+        fetch("/api")
+          .then((response) => response.json())
+          .then((catalog) => renderApiCatalog(catalog))
+          .catch(() => {
+            apiStatus.textContent = "接口目录不可用";
+            apiSummary.innerHTML = '<div class="error">接口目录加载失败。</div>';
+            apiEntrypoints.innerHTML = "";
+            apiGroups.innerHTML = "";
+            apiSafety.innerHTML = "";
+          });
+      }
+
+      function renderApiCatalog(catalog) {
+        const system = catalog.system || {};
+        const groups = catalog.groups || [];
+        const entries = catalog.recommended_entrypoints || [];
+        const safety = catalog.safety || {};
+        const groupDetail = groups
+          .map((group) => `${group.name}: ${(group.endpoints || []).length}`)
+          .join("\n");
+        apiStatus.textContent = `${catalog.total_endpoints || 0} 个公开接口`;
+        apiStatus.title = groupDetail;
+        apiSummary.innerHTML = [
+          summaryPill("系统", system.name || "MyInvestPicking", system.description || ""),
+          summaryPill("版本", system.version || "-", system.description || ""),
+          summaryPill("Base", catalog.base_url || "-", catalog.base_url || ""),
+          summaryPill("接口", catalog.total_endpoints || 0, groupDetail),
+        ].join("");
+        apiEntrypoints.innerHTML = entries
+          .map((entry) => apiRow(apiPathLink(entry.path), entry.purpose || ""))
+          .join("");
+        apiGroups.innerHTML = groups
+          .map((group) => {
+            const endpoints = group.endpoints || [];
+            const detail = endpoints.map((endpoint) => `${endpoint.method} ${endpoint.path}`).join("\n");
+            return apiRow(
+              `${escapeHtml(group.name)} <span>${endpoints.length}</span>`,
+              group.description || detail,
+              detail,
+            );
+          })
+          .join("");
+        apiSafety.innerHTML = Object.entries(safety)
+          .map(([key, value]) => apiRow(escapeHtml(safetyLabel(key)), value))
+          .join("");
+      }
+
+      function apiPathLink(path) {
+        const safePath = String(path || "/api");
+        return `<a href="${escapeAttr(safePath)}" target="_blank" rel="noopener noreferrer">${escapeHtml(safePath)}</a>`;
+      }
+
+      function apiRow(title, text, detail) {
+        return `<div class="api-row" title="${escapeAttr(detail || text || "")}"><strong>${title}</strong><span>${escapeHtml(text || "")}</span></div>`;
+      }
+
+      function safetyLabel(key) {
+        const labels = {
+          catalog: "目录",
+          trading: "交易",
+          positioning: "仓位",
+          runtime_writes: "运行写入",
+          secrets: "密钥",
+        };
+        return labels[key] || key;
       }
 
       function loadShadowPortfolio() {
